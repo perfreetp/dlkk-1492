@@ -21,8 +21,35 @@ const getAudioContext = () => {
 const playDingSound = () => {
   const ctx = getAudioContext();
   if (ctx) {
+    try {
+      ctx.stop();
+    } catch (e) {
+      // ignore
+    }
     ctx.src = 'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/sound.mp3';
     ctx.play();
+  }
+};
+
+const buildTTSUrl = (text: string): string => {
+  const encoded = encodeURIComponent(text);
+  return `https://tts.baidu.com/text2audio?lan=zh&ie=UTF-8&spd=5&per=0&pit=5&vol=9&text=${encoded}`;
+};
+
+const playOnlineTTS = (text: string): boolean => {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+  try {
+    ctx.stop();
+    ctx.src = buildTTSUrl(text);
+    ctx.onError((err: any) => {
+      console.warn('TTS online play error', err);
+    });
+    ctx.play();
+    return true;
+  } catch (e) {
+    console.warn('playOnlineTTS error', e);
+    return false;
   }
 };
 
@@ -67,10 +94,14 @@ export const speak = (text: string, options?: { type?: 'normal' | 'calling' | 'w
     } else {
       vibratePattern('short');
     }
-    playDingSound();
+
+    const ttsOk = playOnlineTTS(text);
+    if (!ttsOk) {
+      playDingSound();
+    }
 
     Taro.showModal({
-      title: type === 'calling' ? '🔔 叫号提醒' : '📢 语音播报',
+      title: type === 'calling' ? '🔔 叫号提醒' : type === 'warning' ? '⏰ 重要提醒' : '📢 语音播报',
       content: text,
       showCancel: false,
       confirmText: '知道了',

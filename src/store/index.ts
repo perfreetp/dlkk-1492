@@ -21,7 +21,7 @@ interface AppState {
 
   setQueue: (queue: QueueInfo | null) => void;
   cancelQueue: () => void;
-  requeue: (updatedQueue: QueueInfo) => void;
+  requeue: (originalQueue: QueueInfo, updatedQueue: QueueInfo) => void;
   resetQueue: () => void;
   updateQueue: (updates: Partial<QueueInfo>) => void;
 
@@ -132,23 +132,56 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
 
-    requeue: (updatedQueue) => {
+    requeue: (originalQueue, updatedQueue) => {
       const newQueue = { ...updatedQueue };
+
+      const oldRecordId = `rec-${originalQueue.id}`;
+      const oldExisting = get().records.find(r => r.id === oldRecordId);
+      const now = new Date();
+      const passTime = now.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+
+      let newRecords = [...get().records];
+      if (oldExisting) {
+        newRecords = newRecords.map(r =>
+          r.id === oldRecordId
+            ? { ...r, status: 'passed' as const, completeTime: passTime, windowNo: originalQueue.windowNo }
+            : r
+        );
+      } else {
+        const passedRecord: RecordItem = {
+          id: oldRecordId,
+          hallName: originalQueue.hallName,
+          serviceName: originalQueue.serviceName,
+          queueNumber: originalQueue.queueNumber,
+          takeTime: originalQueue.takeTime,
+          completeTime: passTime,
+          status: 'passed',
+          windowNo: originalQueue.windowNo,
+        };
+        newRecords = [passedRecord, ...newRecords];
+      }
+
+      const newRecordId = `rec-${newQueue.id}`;
+      const newExisting = newRecords.find(r => r.id === newRecordId);
+      if (!newExisting) {
+        const newRecord: RecordItem = {
+          id: newRecordId,
+          hallName: newQueue.hallName,
+          serviceName: newQueue.serviceName,
+          queueNumber: newQueue.queueNumber,
+          takeTime: newQueue.takeTime,
+          status: 'completed',
+        };
+        newRecords = [newRecord, ...newRecords];
+      }
+
       set({
         currentQueue: newQueue,
         hasRequeued: true,
+        records: newRecords,
       });
       persistQueueState(newQueue, true, false);
-
-      const recordId = `rec-${newQueue.id}`;
-      const existing = get().records.find(r => r.id === recordId);
-      if (existing) {
-        const newRecords = get().records.map(r =>
-          r.id === recordId ? { ...r, status: 'passed' as const } : r
-        );
-        set({ records: newRecords });
-        persistRecords(newRecords);
-      }
+      persistRecords(newRecords);
     },
 
     resetQueue: () => {

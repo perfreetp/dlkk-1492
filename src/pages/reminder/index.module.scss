@@ -304,13 +304,19 @@
   }
 }
 
+.voiceTestBox {
+  margin-top: $spacing-sm;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
 .voiceTest {
   display: flex;
   align-items: center;
   padding: $spacing-sm $spacing-md;
   background: $color-bg-page;
   border-radius: $radius-sm;
-  margin-top: $spacing-sm;
 
   .voiceIcon {
     margin-right: $spacing-sm;

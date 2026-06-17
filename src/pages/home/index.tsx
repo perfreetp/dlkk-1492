@@ -57,36 +57,105 @@ const HomePage: React.FC = () => {
     });
   };
 
+  const parseBusinessHours = (hours: string) => {
+    const [startStr, endStr] = hours.split('-');
+    const [sh, sm] = startStr.split(':').map(Number);
+    const [eh, em] = endStr.split(':').map(Number);
+    const now = new Date();
+    const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0);
+    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0);
+    return { startTime, endTime };
+  };
+
+  const getBusinessStatus = (hall: HallInfo, walkMin: number) => {
+    const { startTime, endTime } = parseBusinessHours(hall.businessHours);
+    const now = new Date();
+    const arrivalTime = new Date(now.getTime() + walkMin * 60000);
+    const finishTime = new Date(arrivalTime.getTime() + hall.waitTime * 60000);
+
+    const isClosedNow = now < startTime || now > endTime;
+    const willBeClosedOnArrival = arrivalTime > endTime;
+    const willBeClosedBeforeFinish = finishTime > endTime;
+    const minutesToClose = Math.round((endTime.getTime() - now.getTime()) / 60000);
+    const nearClosing = minutesToClose > 0 && minutesToClose < hall.waitTime + walkMin + 15;
+
+    let status: 'open' | 'closed' | 'nearClosing' = 'open';
+    let reason = '';
+
+    if (isClosedNow) {
+      status = 'closed';
+      reason = '已休息';
+    } else if (willBeClosedOnArrival) {
+      status = 'closed';
+      reason = '到达时已下班';
+    } else if (nearClosing || willBeClosedBeforeFinish) {
+      status = 'nearClosing';
+      reason = `剩 ${minutesToClose} 分下班`;
+    }
+
+    return { status, reason, minutesToClose, arrivalTime, finishTime };
+  };
+
   const calculateScore = (hall: HallInfo) => {
+    const walkMin = Math.round(hall.distance * 15);
+    const biz = getBusinessStatus(hall, walkMin);
+
+    if (biz.status === 'closed') return -999;
+
     let score = 100;
     score -= hall.distance * 5;
     const crowdPenalty: Record<string, number> = { green: 0, yellow: 15, red: 35 };
     score -= crowdPenalty[hall.crowdLevel] || 0;
     score -= hall.waitTime * 0.5;
+
+    if (biz.status === 'nearClosing') {
+      score -= 50;
+    }
     return score;
   };
 
   const recommendedHall = useMemo(() => {
     if (nearbyHalls.length === 0) return null;
-    const scored = nearbyHalls.map(h => ({ hall: h, score: calculateScore(h) }));
+    const scored = nearbyHalls
+      .map(h => ({ hall: h, score: calculateScore(h) }))
+      .filter(x => x.score > -900);
+    if (scored.length === 0) return null;
     scored.sort((a, b) => b.score - a.score);
     return scored[0].hall;
   }, [nearbyHalls]);
 
-  const formatArrivalTime = (distance: number) => {
-    const walkMin = Math.round(distance * 15);
-    const now = new Date();
-    const arr = new Date(now.getTime() + walkMin * 60000);
-    const hh = arr.getHours().toString().padStart(2, '0');
-    const mm = arr.getMinutes().toString().padStart(2, '0');
+  const formatTime = (date: Date) => {
+    const hh = date.getHours().toString().padStart(2, '0');
+    const mm = date.getMinutes().toString().padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  const getHallTimeInfo = (hall: HallInfo) => {
+    const walkMin = Math.round(hall.distance * 15);
+    const biz = getBusinessStatus(hall, walkMin);
     const walkText = walkMin > 60
       ? `${Math.floor(walkMin / 60)}小时${walkMin % 60}分`
       : `${walkMin}分钟`;
-    return `${walkText} (${hh}:${mm})`;
+    return {
+      walkText,
+      arrivalText: `${walkText} (${formatTime(biz.arrivalTime)})`,
+      canFinishText: biz.status === 'closed' ? '已休息无法办理' : `预计 ${formatTime(biz.finishTime)} 能办上`,
+      bizStatus: biz.status,
+      bizReason: biz.reason,
+    };
   };
 
   const getRecommendation = (hall: HallInfo) => {
     const { waitTime, crowdLevel, distance } = hall;
+    const walkMin = Math.round(distance * 15);
+    const biz = getBusinessStatus(hall, walkMin);
+
+    if (biz.status === 'closed') {
+      return { text: biz.reason, level: 'bad', icon: '🚫' };
+    }
+    if (biz.status === 'nearClosing') {
+      return { text: biz.reason + '，建议明天再来', level: 'bad', icon: '🌙' };
+    }
     if (crowdLevel === 'green' && waitTime <= 15 && distance <= 2) {
       return { text: '非常适合现在去', level: 'great', icon: '✅' };
     }
@@ -187,12 +256,17 @@ const HomePage: React.FC = () => {
                   </View>
                   <View className={styles.recItem}>
                     <Text className={styles.recValue} style={fs}>{recommendedHall.distance}km</Text>
-                    <Text className={styles.recLabel} style={fsDesc}>步行 {formatArrivalTime(recommendedHall.distance)}</Text>
+                    <Text className={styles.recLabel} style={fsDesc}>步行 {getHallTimeInfo(recommendedHall).arrivalText}</Text>
                   </View>
                   <View className={styles.recItem}>
                     <Text className={styles.recValue} style={fs}>{recommendedHall.openWindows}</Text>
                     <Text className={styles.recLabel} style={fsDesc}>开放窗口</Text>
                   </View>
+                </View>
+
+                <View className={styles.canFinishRow}>
+                  <Text className={styles.clockIcon}>🕐</Text>
+                  <Text className={styles.canFinishText} style={fs}>{getHallTimeInfo(recommendedHall).canFinishText}</Text>
                 </View>
 
                 <View
@@ -217,63 +291,76 @@ const HomePage: React.FC = () => {
           ) : nearbyHalls.length === 0 ? (
             <View className={styles.emptyState}>暂无附近大厅数据</View>
           ) : (
-            nearbyHalls.map((hall) => (
-              <View
-                key={hall.id}
-                className={styles.hallCard}
-                onClick={() => handleHallClick(hall)}
-              >
-                <View className={styles.hallHeader}>
-                  <View>
-                    <Text className={styles.hallName} style={fs}>{hall.name}</Text>
-                    <Text className={styles.hallAddress} style={fsDesc}>{hall.address}</Text>
-                  </View>
-                  <View className={getCrowdClass(hall.crowdLevel)}>
-                    {hall.crowdText}
-                  </View>
-                </View>
-
-                <View className={styles.hallInfo}>
-                  <View className={styles.infoItem}>
-                    <Text className={styles.infoValue} style={fsTitle}>{hall.waitTime}</Text>
-                    <Text className={styles.infoLabel} style={fsDesc}>预计等待(分)</Text>
-                  </View>
-                  <View className={styles.infoItem}>
-                    <Text className={styles.infoValue} style={fs}>{hall.openWindows}/{hall.windowCount}</Text>
-                    <Text className={styles.infoLabel} style={fsDesc}>开放窗口</Text>
-                  </View>
-                  <View className={styles.infoItem}>
-                    <Text className={styles.infoValue} style={fsDesc}>{hall.businessHours}</Text>
-                    <Text className={styles.infoLabel} style={fsDesc}>营业时间</Text>
-                  </View>
-                </View>
-
-                <View className={styles.distance}>
-                  <Text className={styles.distanceIcon}>🚶</Text>
-                  <Text style={fsDesc}>距您 {hall.distance} 公里</Text>
-                </View>
-
-                {hall.tidalWindows.filter(w => w.status === 'open').length > 0 && (
-                  <View className={styles.tidalSection}>
-                    <View className={styles.tidalTitle}>
-                      <Text className={styles.tidalIcon}>🌊</Text>
-                      <Text style={fs}>当前开放潮汐窗口</Text>
+            nearbyHalls.map((hall) => {
+              const hallTimeInfo = getHallTimeInfo(hall);
+              const isHallClosed = hallTimeInfo.bizStatus === 'closed';
+              return (
+                <View
+                  key={hall.id}
+                  className={classnames(styles.hallCard, { [styles.hallClosed]: isHallClosed })}
+                  onClick={() => !isHallClosed && handleHallClick(hall)}
+                >
+                  <View className={styles.hallHeader}>
+                    <View>
+                      <Text className={styles.hallName} style={fs}>{hall.name}</Text>
+                      <Text className={styles.hallAddress} style={fsDesc}>{hall.address}</Text>
                     </View>
-                    <View className={styles.tidalList}>
-                      {hall.tidalWindows
-                        .filter(w => w.status === 'open')
-                        .slice(0, 3)
-                        .map((window, idx) => (
-                          <View key={idx} className={styles.tidalItem}>
-                            <Text className={styles.windowNo}>{window.windowNo}</Text>
-                            <Text style={fsDesc}>{window.serviceType}</Text>
-                          </View>
-                        ))}
+                    <View className={getCrowdClass(hall.crowdLevel)}>
+                      {hall.crowdText}
                     </View>
                   </View>
-                )}
-              </View>
-            ))
+
+                  <View className={styles.hallInfo}>
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoValue} style={fsTitle}>{hall.waitTime}</Text>
+                      <Text className={styles.infoLabel} style={fsDesc}>预计等待(分)</Text>
+                    </View>
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoValue} style={fs}>{hall.openWindows}/{hall.windowCount}</Text>
+                      <Text className={styles.infoLabel} style={fsDesc}>开放窗口</Text>
+                    </View>
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoValue} style={fsDesc}>{hall.businessHours}</Text>
+                      <Text className={styles.infoLabel} style={fsDesc}>
+                        {isHallClosed ? `⚠️ ${hallTimeInfo.bizReason}` : '营业时间'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className={styles.hallFooter}>
+                    <View className={styles.distance}>
+                      <Text className={styles.distanceIcon}>🚶</Text>
+                      <Text style={fsDesc}>距您 {hall.distance} 公里 · {hallTimeInfo.arrivalText}</Text>
+                    </View>
+                    {!isHallClosed && (
+                      <View className={styles.finishTag}>
+                        <Text style={fsDesc}>{hallTimeInfo.canFinishText}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {hall.tidalWindows.filter(w => w.status === 'open').length > 0 && (
+                    <View className={styles.tidalSection}>
+                      <View className={styles.tidalTitle}>
+                        <Text className={styles.tidalIcon}>🌊</Text>
+                        <Text style={fs}>当前开放潮汐窗口</Text>
+                      </View>
+                      <View className={styles.tidalList}>
+                        {hall.tidalWindows
+                          .filter(w => w.status === 'open')
+                          .slice(0, 3)
+                          .map((window, idx) => (
+                            <View key={idx} className={styles.tidalItem}>
+                              <Text className={styles.windowNo}>{window.windowNo}</Text>
+                              <Text style={fsDesc}>{window.serviceType}</Text>
+                            </View>
+                          ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })
           )}
         </View>
 

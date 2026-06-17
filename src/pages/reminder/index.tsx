@@ -112,7 +112,31 @@ const ReminderPage: React.FC = () => {
   };
 
   const testVoice = () => {
-    speak('请注意，您的号码即将被叫到，请前往指定窗口办理业务。');
+    if (!voiceEnabled) {
+      Taro.showToast({
+        title: '请先开启语音播报',
+        icon: 'none',
+      });
+      return;
+    }
+    speak(
+      '请A0243号，前往A03窗口办理不动产登记业务，地点在市政务服务中心。请A0243号，前往A03窗口办理。',
+      { type: 'calling' }
+    );
+  };
+
+  const testNearby = () => {
+    if (!voiceEnabled) {
+      Taro.showToast({
+        title: '请先开启语音播报',
+        icon: 'none',
+      });
+      return;
+    }
+    speak(
+      '温馨提示，您的号码A0250前方还有2人，预计等待3分钟。办理地点是区政务服务分中心，业务是社保卡办理，请注意叫号。',
+      { type: 'warning' }
+    );
   };
 
   const filteredReminders = getFilteredReminders();
@@ -213,10 +237,17 @@ const ReminderPage: React.FC = () => {
               <Text className={styles.settingName} style={fontSizeStyle}>语音播报</Text>
               <Text className={styles.settingDesc} style={descFontSizeStyle}>叫号时语音提醒，避免错过</Text>
               {voiceEnabled && (
-                <View className={styles.voiceTest} onClick={(e) => { e.stopPropagation(); testVoice(); }}>
-                  <Text className={styles.voiceIcon}>🔊</Text>
-                  <Text className={styles.voiceText} style={bigFontMode ? { fontSize: '26rpx' } : {}}>点击试听播报效果</Text>
-                  <Text className={styles.playBtn} style={bigFontMode ? { fontSize: '26rpx' } : {}}>播放</Text>
+                <View className={styles.voiceTestBox}>
+                  <View className={styles.voiceTest} onClick={(e) => { e.stopPropagation(); testVoice(); }}>
+                    <Text className={styles.voiceIcon}>�</Text>
+                    <Text className={styles.voiceText} style={bigFontMode ? { fontSize: '26rpx' } : {}}>正在叫号试听</Text>
+                    <Text className={styles.playBtn} style={bigFontMode ? { fontSize: '26rpx' } : {}}>播放</Text>
+                  </View>
+                  <View className={styles.voiceTest} onClick={(e) => { e.stopPropagation(); testNearby(); }}>
+                    <Text className={styles.voiceIcon}>⏰</Text>
+                    <Text className={styles.voiceText} style={bigFontMode ? { fontSize: '26rpx' } : {}}>临近叫号试听</Text>
+                    <Text className={styles.playBtn} style={bigFontMode ? { fontSize: '26rpx' } : {}}>播放</Text>
+                  </View>
                 </View>
               )}
             </View>

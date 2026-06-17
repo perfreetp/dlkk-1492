@@ -449,3 +449,43 @@
     color: $color-primary;
   }
 }
+
+.passHint {
+  font-size: $font-size-xs;
+  color: $color-warning;
+  margin-top: $spacing-sm;
+  font-weight: $font-weight-medium;
+}
+
+.passedBox {
+  background: $color-error-bg !important;
+
+  .label {
+    color: $color-error !important;
+    font-size: $font-size-sm !important;
+  }
+}
+
+.passedText {
+  font-size: $font-size-xl;
+  font-weight: bold;
+  color: $color-error;
+  margin: $spacing-xs 0;
+}
+
+.hintText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  margin-top: $spacing-xs;
+}
+
+.actionBtn {
+  &.success {
+    background: $color-success !important;
+    color: $color-text-white !important;
+
+    &:active {
+      opacity: 0.9;
+    }
+  }
+}

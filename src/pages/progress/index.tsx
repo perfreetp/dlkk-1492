@@ -24,6 +24,7 @@ const ProgressPage: React.FC = () => {
   const [hall, setHall] = useState<HallInfo | null>(null);
   const [showRequeueModal, setShowRequeueModal] = useState<boolean>(false);
   const timerRef = useRef<number | null>(null);
+  const callingTimerRef = useRef<number | null>(null);
   const lastSpeakKeyRef = useRef<string>('');
 
   useEffect(() => {
@@ -66,10 +67,13 @@ const ProgressPage: React.FC = () => {
     let text = '';
     let speakType: 'normal' | 'calling' | 'warning' = 'normal';
     if (status === 'calling') {
-      text = `请${queue.queueNumber}号，前往${queue.windowNo || '指定'}窗口办理${queue.serviceName}业务，地点在${queue.hallName}。`;
+      text = `请${queue.queueNumber}号，前往${queue.windowNo || '指定'}窗口办理${queue.serviceName}业务，地点在${queue.hallName}。请${queue.queueNumber}号，前往${queue.windowNo || '指定'}窗口办理${queue.serviceName}业务。`;
       speakType = 'calling';
+    } else if (status === 'passed') {
+      text = `注意，您的号码${queue.queueNumber}已过号。请${queue.queueNumber}号尽快前往${queue.hallName}${queue.windowNo || '咨询台'}申请过号重排。您的号码${queue.queueNumber}所办事项是${queue.serviceName}。`;
+      speakType = 'warning';
     } else if (status === 'waiting' && aheadCount <= 3 && aheadCount >= 0) {
-      text = `温馨提示，您的号码${queue.queueNumber}前方还有${aheadCount}人，请注意${queue.hallName}的叫号。`;
+      text = `温馨提示，您的号码${queue.queueNumber}前方还有${aheadCount}人，预计等待${queue.waitTime}分钟。办理地点是${queue.hallName}，业务是${queue.serviceName}，请注意叫号。`;
       speakType = 'warning';
     }
 
@@ -80,9 +84,80 @@ const ProgressPage: React.FC = () => {
     }
   }, [voiceEnabled]);
 
+  const clearCallingTimer = () => {
+    if (callingTimerRef.current) {
+      Taro.clearTimeout(callingTimerRef.current);
+      callingTimerRef.current = null;
+    }
+  };
+
+  const handlePassed = useCallback(() => {
+    if (!storeQueue) return;
+    const passedUpdates: Partial<QueueInfo> = {
+      status: 'passed',
+    };
+    updateQueue(passedUpdates);
+    checkAndSpeak({ ...storeQueue, ...passedUpdates } as QueueInfo);
+
+    const now = new Date();
+    const passTime = now.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+    const recordId = `rec-${storeQueue.id}`;
+    const records = useAppStore.getState().records;
+    const existing = records.find(r => r.id === recordId);
+    if (existing) {
+      updateRecordStatus(recordId, 'passed', {
+        completeTime: passTime,
+        windowNo: storeQueue.windowNo,
+      });
+    } else {
+      addRecord({
+        id: recordId,
+        hallName: storeQueue.hallName,
+        serviceName: storeQueue.serviceName,
+        queueNumber: storeQueue.queueNumber,
+        takeTime: storeQueue.takeTime,
+        completeTime: passTime,
+        status: 'passed',
+        windowNo: storeQueue.windowNo,
+      });
+    }
+  }, [storeQueue, updateQueue, checkAndSpeak, updateRecordStatus, addRecord]);
+
+  const handleCompleted = useCallback(() => {
+    if (!storeQueue) return;
+    const completeUpdates: Partial<QueueInfo> = {
+      status: 'completed',
+    };
+    updateQueue(completeUpdates);
+
+    const now = new Date();
+    const completeTime = now.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+    const recordId = `rec-${storeQueue.id}`;
+    const records = useAppStore.getState().records;
+    const existing = records.find(r => r.id === recordId);
+    if (existing) {
+      updateRecordStatus(recordId, 'completed', {
+        completeTime,
+        windowNo: storeQueue.windowNo,
+      });
+    } else {
+      addRecord({
+        id: recordId,
+        hallName: storeQueue.hallName,
+        serviceName: storeQueue.serviceName,
+        queueNumber: storeQueue.queueNumber,
+        takeTime: storeQueue.takeTime,
+        completeTime,
+        status: 'completed',
+        windowNo: storeQueue.windowNo,
+      });
+    }
+  }, [storeQueue, updateQueue, updateRecordStatus, addRecord]);
+
   const advanceQueue = useCallback(() => {
     if (!storeQueue) return;
     if (storeQueue.status === 'completed' || storeQueue.status === 'passed') return;
+    if (storeQueue.status === 'processing') return;
 
     const { prefix, num: myNum } = parseQueueNumber(storeQueue.queueNumber);
     const { num: curNum } = parseQueueNumber(storeQueue.currentNumber);
@@ -102,6 +177,14 @@ const ProgressPage: React.FC = () => {
         };
         updateQueue(updated);
         checkAndSpeak({ ...storeQueue, ...updated } as QueueInfo);
+
+        clearCallingTimer();
+        callingTimerRef.current = Taro.setTimeout(() => {
+          const state = useAppStore.getState();
+          if (state.currentQueue?.status === 'calling') {
+            handlePassed();
+          }
+        }, 24000) as unknown as number;
       } else {
         const updated: Partial<QueueInfo> = {
           currentNumber: formatQueueNumber(prefix, nextCurNum),
@@ -111,54 +194,16 @@ const ProgressPage: React.FC = () => {
         updateQueue(updated);
         checkAndSpeak({ ...storeQueue, ...updated } as QueueInfo);
       }
-    } else if (storeQueue.status === 'calling') {
-      const updated: Partial<QueueInfo> = {
-        status: 'processing',
-        currentNumber: storeQueue.queueNumber,
-        aheadCount: 0,
-        waitTime: 0,
-      };
-      updateQueue(updated);
-
-      setTimeout(() => {
-        const completeUpdates: Partial<QueueInfo> = {
-          status: 'completed',
-        };
-        updateQueue(completeUpdates);
-
-        const now = new Date();
-        const completeTime = now.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
-        const recordId = `rec-${storeQueue.id}`;
-        const records = useAppStore.getState().records;
-        const existing = records.find(r => r.id === recordId);
-
-        if (existing) {
-          updateRecordStatus(recordId, 'completed', {
-            completeTime,
-            windowNo: storeQueue.windowNo,
-          });
-        } else {
-          addRecord({
-            id: recordId,
-            hallName: storeQueue.hallName,
-            serviceName: storeQueue.serviceName,
-            queueNumber: storeQueue.queueNumber,
-            takeTime: storeQueue.takeTime,
-            completeTime,
-            status: 'completed',
-            windowNo: storeQueue.windowNo,
-          });
-        }
-      }, 5000);
     }
-  }, [storeQueue, updateQueue, checkAndSpeak, updateRecordStatus]);
+  }, [storeQueue, updateQueue, checkAndSpeak, handlePassed]);
 
   useEffect(() => {
     if (!storeQueue || storeQueue.status === 'completed' || storeQueue.status === 'passed' || queueCancelled) {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        Taro.clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      clearCallingTimer();
       return;
     }
 
@@ -171,6 +216,7 @@ const ProgressPage: React.FC = () => {
         Taro.clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      clearCallingTimer();
     };
   }, [storeQueue?.id, storeQueue?.status, advanceQueue, queueCancelled]);
 
@@ -228,13 +274,31 @@ const ProgressPage: React.FC = () => {
 
   const confirmRequeue = () => {
     if (storeQueue) {
+      clearCallingTimer();
+      const { prefix, num } = parseQueueNumber(storeQueue.queueNumber);
+      const newQueueNum = formatQueueNumber(prefix, num + 50);
+      const now = new Date();
+      const newEstimate = new Date(now.getTime() + (storeQueue.waitTime + 10) * 60000);
+      const estStr = `${newEstimate.getHours().toString().padStart(2, '0')}:${newEstimate.getMinutes().toString().padStart(2, '0')}`;
+      const takeTime = now.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+
+      const newId = `${storeQueue.id}-rq-${Date.now()}`;
+      const originalForRecord = { ...storeQueue };
+
       const updated: QueueInfo = {
         ...storeQueue,
-        aheadCount: storeQueue.aheadCount + 5,
+        id: newId,
+        queueNumber: newQueueNum,
+        aheadCount: 5,
         waitTime: storeQueue.waitTime + 10,
-        status: 'waiting'
+        status: 'waiting',
+        windowNo: undefined,
+        estimatedCallTime: estStr,
+        takeTime,
+        currentNumber: storeQueue.currentNumber,
       };
-      requeueStore(updated);
+
+      requeueStore(originalForRecord, updated);
       setShowRequeueModal(false);
       Taro.showToast({
         title: '重排成功',
@@ -340,6 +404,31 @@ const ProgressPage: React.FC = () => {
               <Text className={styles.number}>{storeQueue.currentNumber}</Text>
               {storeQueue.windowNo && (
                 <Text className={styles.window}>请前往 {storeQueue.windowNo} 窗口</Text>
+              )}
+              <Text className={styles.passHint}>⚠️ 叫号超时未到将视为过号</Text>
+            </View>
+            <View
+              className={classnames(styles.actionBtn, styles.success)}
+              style={{ marginTop: '24rpx', width: '100%' }}
+              onClick={() => {
+                clearCallingTimer();
+                updateQueue({ status: 'processing' });
+                setTimeout(() => handleCompleted(), 3000);
+              }}
+            >
+              ✅ 我已到窗口，开始办理
+            </View>
+          </View>
+        )}
+
+        {storeQueue.status === 'passed' && (
+          <View className={styles.section}>
+            <View className={classnames(styles.currentNumber, styles.passedBox)}>
+              <Text className={styles.label}>⏰ 过号提醒</Text>
+              <Text className={styles.passedText}>您的号码 {storeQueue.queueNumber} 已过号</Text>
+              <Text className={styles.window}>请前往咨询台或点击下方申请重排</Text>
+              {storeQueue.windowNo && (
+                <Text className={styles.hintText}>原叫号窗口：{storeQueue.windowNo}</Text>
               )}
             </View>
           </View>

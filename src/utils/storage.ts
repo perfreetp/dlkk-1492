@@ -9,6 +9,7 @@ export const storageKeys = {
   records: `${PREFIX}records`,
   settings: `${PREFIX}settings`,
   hasSpoken: `${PREFIX}hasSpoken`,
+  selectedHallId: `${PREFIX}selectedHallId`,
 };
 
 export const setStorage = <T>(key: string, data: T): void => {

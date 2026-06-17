@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useDidHide } from '@tarojs/taro';
 import styles from './index.module.scss';
 import { getHallById } from '@/data/halls';
 import { QueueInfo, HallInfo } from '@/types';
@@ -15,11 +15,16 @@ const ProgressPage: React.FC = () => {
   const hasRequeuedStore = useAppStore(state => state.hasRequeued);
   const cancelQueue = useAppStore(state => state.cancelQueue);
   const requeueStore = useAppStore(state => state.requeue);
+  const updateQueue = useAppStore(state => state.updateQueue);
+  const addRecord = useAppStore(state => state.addRecord);
+  const updateRecordStatus = useAppStore(state => state.updateRecordStatus);
   const bigFontMode = useAppStore(state => state.settings.bigFontMode);
   const voiceEnabled = useAppStore(state => state.settings.voiceEnabled);
 
   const [hall, setHall] = useState<HallInfo | null>(null);
   const [showRequeueModal, setShowRequeueModal] = useState<boolean>(false);
+  const timerRef = useRef<number | null>(null);
+  const lastSpeakKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (storeQueue) {
@@ -30,33 +35,153 @@ const ProgressPage: React.FC = () => {
     }
   }, [storeQueue]);
 
-  const checkAndSpeak = useCallback(() => {
-    if (!voiceEnabled || !storeQueue) return;
-
-    const status = storeQueue.status;
-    const aheadCount = storeQueue.aheadCount;
-    const queueId = storeQueue.id;
-
-    const spokenKey = getStorage<string>(storageKeys.hasSpoken, '');
-    const currentKey = `${queueId}_${status}_${aheadCount <= 3 ? 'near' : 'far'}`;
-
-    if (spokenKey === currentKey) return;
-
-    if (status === 'calling') {
-      speak(`请${storeQueue.queueNumber}号，前往${storeQueue.windowNo || '指定'}窗口办理${storeQueue.serviceName}业务。`);
-      setStorage(storageKeys.hasSpoken, currentKey);
-    } else if (status === 'waiting' && aheadCount <= 3 && aheadCount >= 0) {
-      speak(`温馨提示，您的号码${storeQueue.queueNumber}前方还有${aheadCount}人，请注意叫号。`);
-      setStorage(storageKeys.hasSpoken, currentKey);
+  const parseQueueNumber = (numStr: string) => {
+    const match = numStr.match(/^([A-Z])(\d+)$/);
+    if (match) {
+      return { prefix: match[1], num: parseInt(match[2], 10) };
     }
-  }, [storeQueue, voiceEnabled]);
+    return { prefix: 'A', num: 0 };
+  };
+
+  const formatQueueNumber = (prefix: string, num: number) => {
+    return `${prefix}${num.toString().padStart(4, '0')}`;
+  };
+
+  const checkAndSpeak = useCallback((queue: QueueInfo) => {
+    if (!voiceEnabled) return;
+
+    const status = queue.status;
+    const aheadCount = queue.aheadCount;
+    const queueId = queue.id;
+
+    const currentKey = `${queueId}_${status}_${aheadCount <= 3 ? 'near' : 'far'}_${aheadCount}`;
+    if (lastSpeakKeyRef.current === currentKey) return;
+
+    const storedKey = getStorage<string>(storageKeys.hasSpoken, '');
+    if (storedKey === currentKey) {
+      lastSpeakKeyRef.current = currentKey;
+      return;
+    }
+
+    let text = '';
+    let speakType: 'normal' | 'calling' | 'warning' = 'normal';
+    if (status === 'calling') {
+      text = `请${queue.queueNumber}号，前往${queue.windowNo || '指定'}窗口办理${queue.serviceName}业务，地点在${queue.hallName}。`;
+      speakType = 'calling';
+    } else if (status === 'waiting' && aheadCount <= 3 && aheadCount >= 0) {
+      text = `温馨提示，您的号码${queue.queueNumber}前方还有${aheadCount}人，请注意${queue.hallName}的叫号。`;
+      speakType = 'warning';
+    }
+
+    if (text) {
+      speak(text, { type: speakType });
+      setStorage(storageKeys.hasSpoken, currentKey);
+      lastSpeakKeyRef.current = currentKey;
+    }
+  }, [voiceEnabled]);
+
+  const advanceQueue = useCallback(() => {
+    if (!storeQueue) return;
+    if (storeQueue.status === 'completed' || storeQueue.status === 'passed') return;
+
+    const { prefix, num: myNum } = parseQueueNumber(storeQueue.queueNumber);
+    const { num: curNum } = parseQueueNumber(storeQueue.currentNumber);
+    const nextCurNum = curNum + 1;
+    const newAhead = Math.max(0, myNum - nextCurNum);
+    const newWaitTime = Math.max(0, Math.round(newAhead * 1.5));
+
+    if (storeQueue.status === 'waiting') {
+      if (nextCurNum >= myNum) {
+        const windowNo = storeQueue.windowNo || `${prefix}0${Math.floor(Math.random() * 5) + 1}`;
+        const updated: Partial<QueueInfo> = {
+          status: 'calling',
+          currentNumber: formatQueueNumber(prefix, nextCurNum),
+          aheadCount: 0,
+          waitTime: 0,
+          windowNo,
+        };
+        updateQueue(updated);
+        checkAndSpeak({ ...storeQueue, ...updated } as QueueInfo);
+      } else {
+        const updated: Partial<QueueInfo> = {
+          currentNumber: formatQueueNumber(prefix, nextCurNum),
+          aheadCount: newAhead,
+          waitTime: newWaitTime,
+        };
+        updateQueue(updated);
+        checkAndSpeak({ ...storeQueue, ...updated } as QueueInfo);
+      }
+    } else if (storeQueue.status === 'calling') {
+      const updated: Partial<QueueInfo> = {
+        status: 'processing',
+        currentNumber: storeQueue.queueNumber,
+        aheadCount: 0,
+        waitTime: 0,
+      };
+      updateQueue(updated);
+
+      setTimeout(() => {
+        const completeUpdates: Partial<QueueInfo> = {
+          status: 'completed',
+        };
+        updateQueue(completeUpdates);
+
+        const now = new Date();
+        const completeTime = now.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+        const recordId = `rec-${storeQueue.id}`;
+        const records = useAppStore.getState().records;
+        const existing = records.find(r => r.id === recordId);
+
+        if (existing) {
+          updateRecordStatus(recordId, 'completed', {
+            completeTime,
+            windowNo: storeQueue.windowNo,
+          });
+        } else {
+          addRecord({
+            id: recordId,
+            hallName: storeQueue.hallName,
+            serviceName: storeQueue.serviceName,
+            queueNumber: storeQueue.queueNumber,
+            takeTime: storeQueue.takeTime,
+            completeTime,
+            status: 'completed',
+            windowNo: storeQueue.windowNo,
+          });
+        }
+      }, 5000);
+    }
+  }, [storeQueue, updateQueue, checkAndSpeak, updateRecordStatus]);
 
   useEffect(() => {
-    checkAndSpeak();
-  }, [checkAndSpeak]);
+    if (!storeQueue || storeQueue.status === 'completed' || storeQueue.status === 'passed' || queueCancelled) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    timerRef.current = Taro.setInterval(() => {
+      advanceQueue();
+    }, 8000) as unknown as number;
+
+    return () => {
+      if (timerRef.current) {
+        Taro.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [storeQueue?.id, storeQueue?.status, advanceQueue, queueCancelled]);
 
   useDidShow(() => {
-    checkAndSpeak();
+    if (storeQueue) {
+      checkAndSpeak(storeQueue);
+    }
+  });
+
+  useDidHide(() => {
+    // 页面隐藏时也保持定时器，因为状态在 store 中持久化
   });
 
   const handleRefresh = () => {

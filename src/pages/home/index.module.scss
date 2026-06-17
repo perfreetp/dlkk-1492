@@ -295,3 +295,115 @@
   color: $color-text-tertiary;
   font-size: $font-size-sm;
 }
+
+.recommendSection {
+  padding: 0 $page-padding;
+  margin-top: $spacing-xl;
+}
+
+.recommendCard {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%);
+  border-radius: $radius-xl;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  border: 1px solid rgba(250, 173, 20, 0.3);
+}
+
+.recommendHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-md;
+}
+
+.recommendTitleRow {
+  display: flex;
+  align-items: center;
+}
+
+.recommendIcon {
+  font-size: 36rpx;
+  margin-right: $spacing-xs;
+}
+
+.recommendTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.recommendBadge {
+  padding: $spacing-xs $spacing-md;
+  border-radius: $radius-round;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  &.great {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+
+  &.normal {
+    background: $color-primary-bg;
+    color: $color-primary;
+  }
+
+  &.bad {
+    background: $color-error-bg;
+    color: $color-error;
+  }
+}
+
+.recommendBody {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+}
+
+.recommendHall {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.recommendStats {
+  display: flex;
+  justify-content: space-between;
+  padding-top: $spacing-md;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.recItem {
+  text-align: center;
+  flex: 1;
+
+  .recValue {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .recLabel {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+    display: block;
+    line-height: 1.3;
+  }
+
+  &:not(:last-child) {
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+  }
+}
+
+.recommendBtn {
+  margin-top: $spacing-md;
+  background: $color-primary;
+  color: $color-text-white;
+  text-align: center;
+  padding: $spacing-sm 0;
+  border-radius: $radius-button;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-md;
+}

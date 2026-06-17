@@ -17,13 +17,19 @@ interface AppState {
   queueCancelled: boolean;
   records: RecordItem[];
   settings: SettingsState;
+  selectedHallId: string | null;
 
   setQueue: (queue: QueueInfo | null) => void;
   cancelQueue: () => void;
   requeue: (updatedQueue: QueueInfo) => void;
   resetQueue: () => void;
+  updateQueue: (updates: Partial<QueueInfo>) => void;
 
+  addRecord: (record: RecordItem) => void;
+  updateRecordStatus: (recordId: string, status: RecordItem['status'], extra?: Partial<RecordItem>) => void;
   updateRecordRating: (recordId: string, rating: number, detail: RecordRating) => void;
+
+  setSelectedHallId: (hallId: string | null) => void;
 
   setVoiceEnabled: (enabled: boolean) => void;
   setVibrateEnabled: (enabled: boolean) => void;
@@ -37,6 +43,7 @@ const loadInitialState = () => {
   const savedCancelled = getStorage<boolean>(storageKeys.queueCancelled, false);
   const savedRecords = getStorage<RecordItem[] | null>(storageKeys.records, null);
   const savedSettings = getStorage<Partial<SettingsState> | null>(storageKeys.settings, null);
+  const savedHallId = getStorage<string | null>(storageKeys.selectedHallId, null);
 
   return {
     currentQueue: savedQueue || (initialQueue ? { ...initialQueue } : null),
@@ -52,6 +59,7 @@ const loadInitialState = () => {
       systemNotice: true,
       ...(savedSettings || {}),
     },
+    selectedHallId: savedHallId,
   };
 };
 
@@ -78,6 +86,7 @@ export const useAppStore = create<AppState>((set, get) => {
     queueCancelled: initial.queueCancelled,
     records: initial.records,
     settings: initial.settings,
+    selectedHallId: initial.selectedHallId,
 
     setQueue: (queue) => {
       const newQueue = queue ? { ...queue } : null;
@@ -90,12 +99,37 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     cancelQueue: () => {
+      const queue = get().currentQueue;
       set({
         queueCancelled: true,
         currentQueue: null,
         hasRequeued: false,
       });
       persistQueueState(null, false, true);
+
+      if (queue) {
+        const recordId = `rec-${queue.id}`;
+        const existing = get().records.find(r => r.id === recordId);
+        if (existing) {
+          const newRecords = get().records.map(r =>
+            r.id === recordId ? { ...r, status: 'cancelled' as const } : r
+          );
+          set({ records: newRecords });
+          persistRecords(newRecords);
+        } else {
+          const record: RecordItem = {
+            id: recordId,
+            hallName: queue.hallName,
+            serviceName: queue.serviceName,
+            queueNumber: queue.queueNumber,
+            takeTime: queue.takeTime,
+            status: 'cancelled',
+          };
+          const newRecords = [record, ...get().records];
+          set({ records: newRecords });
+          persistRecords(newRecords);
+        }
+      }
     },
 
     requeue: (updatedQueue) => {
@@ -105,6 +139,16 @@ export const useAppStore = create<AppState>((set, get) => {
         hasRequeued: true,
       });
       persistQueueState(newQueue, true, false);
+
+      const recordId = `rec-${newQueue.id}`;
+      const existing = get().records.find(r => r.id === recordId);
+      if (existing) {
+        const newRecords = get().records.map(r =>
+          r.id === recordId ? { ...r, status: 'passed' as const } : r
+        );
+        set({ records: newRecords });
+        persistRecords(newRecords);
+      }
     },
 
     resetQueue: () => {
@@ -114,6 +158,33 @@ export const useAppStore = create<AppState>((set, get) => {
         queueCancelled: false,
       });
       persistQueueState(null, false, false);
+    },
+
+    updateQueue: (updates) => {
+      set((state) => {
+        if (!state.currentQueue) return state;
+        const newQueue = { ...state.currentQueue, ...updates };
+        persistQueueState(newQueue, state.hasRequeued, state.queueCancelled);
+        return { currentQueue: newQueue };
+      });
+    },
+
+    addRecord: (record) => {
+      set((state) => {
+        const newRecords = [record, ...state.records];
+        persistRecords(newRecords);
+        return { records: newRecords };
+      });
+    },
+
+    updateRecordStatus: (recordId, status, extra) => {
+      set((state) => {
+        const newRecords = state.records.map(r =>
+          r.id === recordId ? { ...r, status, ...(extra || {}) } : r
+        );
+        persistRecords(newRecords);
+        return { records: newRecords };
+      });
     },
 
     updateRecordRating: (recordId, rating, detail) => {
@@ -126,6 +197,11 @@ export const useAppStore = create<AppState>((set, get) => {
         persistRecords(newRecords);
         return { records: newRecords };
       });
+    },
+
+    setSelectedHallId: (hallId) => {
+      set({ selectedHallId: hallId });
+      setStorage(storageKeys.selectedHallId, hallId);
     },
 
     setVoiceEnabled: (enabled) => {

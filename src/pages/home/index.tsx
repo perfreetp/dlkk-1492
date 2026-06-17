@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import styles from './index.module.scss';
-import { getNearbyHalls } from '@/data/halls';
+import { getNearbyHalls, hallList } from '@/data/halls';
 import { HallInfo } from '@/types';
 import { useAppStore } from '@/store';
 import classnames from 'classnames';
@@ -11,6 +11,8 @@ const HomePage: React.FC = () => {
   const [nearbyHalls, setNearbyHalls] = useState<HallInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const bigFontMode = useAppStore(state => state.settings.bigFontMode);
+  const setSelectedHallId = useAppStore(state => state.setSelectedHallId);
+  const currentQueue = useAppStore(state => state.currentQueue);
 
   const quickActions = [
     { icon: '📱', text: '取号', color: '#e8f0ff', onClick: () => Taro.switchTab({ url: '/pages/queue/index' }) },
@@ -55,7 +57,50 @@ const HomePage: React.FC = () => {
     });
   };
 
+  const calculateScore = (hall: HallInfo) => {
+    let score = 100;
+    score -= hall.distance * 5;
+    const crowdPenalty: Record<string, number> = { green: 0, yellow: 15, red: 35 };
+    score -= crowdPenalty[hall.crowdLevel] || 0;
+    score -= hall.waitTime * 0.5;
+    return score;
+  };
+
+  const recommendedHall = useMemo(() => {
+    if (nearbyHalls.length === 0) return null;
+    const scored = nearbyHalls.map(h => ({ hall: h, score: calculateScore(h) }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].hall;
+  }, [nearbyHalls]);
+
+  const formatArrivalTime = (distance: number) => {
+    const walkMin = Math.round(distance * 15);
+    const now = new Date();
+    const arr = new Date(now.getTime() + walkMin * 60000);
+    const hh = arr.getHours().toString().padStart(2, '0');
+    const mm = arr.getMinutes().toString().padStart(2, '0');
+    const walkText = walkMin > 60
+      ? `${Math.floor(walkMin / 60)}小时${walkMin % 60}分`
+      : `${walkMin}分钟`;
+    return `${walkText} (${hh}:${mm})`;
+  };
+
+  const getRecommendation = (hall: HallInfo) => {
+    const { waitTime, crowdLevel, distance } = hall;
+    if (crowdLevel === 'green' && waitTime <= 15 && distance <= 2) {
+      return { text: '非常适合现在去', level: 'great', icon: '✅' };
+    }
+    if (crowdLevel === 'red' || waitTime > 40) {
+      return { text: '建议稍后再去', level: 'bad', icon: '⚠️' };
+    }
+    if (distance > 4) {
+      return { text: '距离较远，可考虑就近', level: 'normal', icon: '📍' };
+    }
+    return { text: '现在去合适', level: 'normal', icon: '👍' };
+  };
+
   const handleHallClick = (hall: HallInfo) => {
+    setSelectedHallId(hall.id);
     Taro.switchTab({ url: '/pages/queue/index' });
   };
 
@@ -113,6 +158,53 @@ const HomePage: React.FC = () => {
             </View>
           ))}
         </View>
+
+        {!loading && recommendedHall && (
+          <View className={styles.recommendSection}>
+            <View className={styles.recommendCard}>
+              <View className={styles.recommendHeader}>
+                <View className={styles.recommendTitleRow}>
+                  <Text className={styles.recommendIcon}>💡</Text>
+                  <Text className={styles.recommendTitle} style={fsTitle}>现在去合不合适？</Text>
+                </View>
+                <View className={classnames(styles.recommendBadge, styles[getRecommendation(recommendedHall).level])}>
+                  {getRecommendation(recommendedHall).icon} {getRecommendation(recommendedHall).text}
+                </View>
+              </View>
+
+              <View className={styles.recommendBody}>
+                <View className={styles.recommendHall}>
+                  <Text className={styles.hallName} style={fs}>{recommendedHall.name}</Text>
+                  <View className={getCrowdClass(recommendedHall.crowdLevel)}>
+                    {recommendedHall.crowdText}
+                  </View>
+                </View>
+
+                <View className={styles.recommendStats}>
+                  <View className={styles.recItem}>
+                    <Text className={styles.recValue} style={fsTitle}>{recommendedHall.waitTime}</Text>
+                    <Text className={styles.recLabel} style={fsDesc}>预计等待(分)</Text>
+                  </View>
+                  <View className={styles.recItem}>
+                    <Text className={styles.recValue} style={fs}>{recommendedHall.distance}km</Text>
+                    <Text className={styles.recLabel} style={fsDesc}>步行 {formatArrivalTime(recommendedHall.distance)}</Text>
+                  </View>
+                  <View className={styles.recItem}>
+                    <Text className={styles.recValue} style={fs}>{recommendedHall.openWindows}</Text>
+                    <Text className={styles.recLabel} style={fsDesc}>开放窗口</Text>
+                  </View>
+                </View>
+
+                <View
+                  className={styles.recommendBtn}
+                  onClick={() => handleHallClick(recommendedHall)}
+                >
+                  <Text style={fs}>去这里取号 →</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View className={styles.section}>
           <View className={styles.sectionHeader}>

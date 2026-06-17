@@ -21,13 +21,28 @@ const QueuePage: React.FC = () => {
   const [newQueue, setNewQueue] = useState<QueueInfo | null>(null);
 
   const setQueue = useAppStore(state => state.setQueue);
+  const selectedHallId = useAppStore(state => state.selectedHallId);
+  const setSelectedHallIdStore = useAppStore(state => state.setSelectedHallId);
 
   useEffect(() => {
     loadServices();
+    if (selectedHallId) {
+      const hall = hallList.find(h => h.id === selectedHallId);
+      if (hall) {
+        setSelectedHall(hall);
+        return;
+      }
+    }
     if (hallList.length > 0) {
       setSelectedHall(hallList[0]);
     }
-  }, []);
+  }, [selectedHallId]);
+
+  useEffect(() => {
+    if (selectedHall) {
+      setSelectedHallIdStore(selectedHall.id);
+    }
+  }, [selectedHall, setSelectedHallIdStore]);
 
   const loadServices = () => {
     let services;

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import styles from './index.module.scss';
 import { reminderList, getUnreadReminderCount } from '@/data/records';
 import { ReminderItem } from '@/types';
 import { useAppStore } from '@/store';
+import { speak } from '@/utils/speech';
 import classnames from 'classnames';
 
 const ReminderPage: React.FC = () => {
@@ -56,23 +57,12 @@ const ReminderPage: React.FC = () => {
     return iconMap[type] || '📌';
   };
 
-  const doSpeak = useCallback((text: string) => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'zh-CN';
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
-
   const handleReminderClick = (reminder: ReminderItem) => {
     if (!reminder.read) {
       markAsRead(reminder.id);
     }
     if (voiceEnabled) {
-      doSpeak(reminder.content);
+      speak(reminder.content);
     }
     if (reminder.relatedQueueId) {
       Taro.switchTab({ url: '/pages/progress/index' });
@@ -122,7 +112,7 @@ const ReminderPage: React.FC = () => {
   };
 
   const testVoice = () => {
-    doSpeak('请注意，您的号码即将被叫到，请前往指定窗口办理业务。');
+    speak('请注意，您的号码即将被叫到，请前往指定窗口办理业务。');
   };
 
   const filteredReminders = getFilteredReminders();

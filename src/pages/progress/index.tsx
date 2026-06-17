@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import styles from './index.module.scss';
 import { getHallById } from '@/data/halls';
 import { QueueInfo, HallInfo } from '@/types';
 import { useAppStore } from '@/store';
+import { speak } from '@/utils/speech';
+import { storageKeys, getStorage, setStorage } from '@/utils/storage';
 import classnames from 'classnames';
 
 const ProgressPage: React.FC = () => {
@@ -14,6 +16,7 @@ const ProgressPage: React.FC = () => {
   const cancelQueue = useAppStore(state => state.cancelQueue);
   const requeueStore = useAppStore(state => state.requeue);
   const bigFontMode = useAppStore(state => state.settings.bigFontMode);
+  const voiceEnabled = useAppStore(state => state.settings.voiceEnabled);
 
   const [hall, setHall] = useState<HallInfo | null>(null);
   const [showRequeueModal, setShowRequeueModal] = useState<boolean>(false);
@@ -26,6 +29,35 @@ const ProgressPage: React.FC = () => {
       setHall(null);
     }
   }, [storeQueue]);
+
+  const checkAndSpeak = useCallback(() => {
+    if (!voiceEnabled || !storeQueue) return;
+
+    const status = storeQueue.status;
+    const aheadCount = storeQueue.aheadCount;
+    const queueId = storeQueue.id;
+
+    const spokenKey = getStorage<string>(storageKeys.hasSpoken, '');
+    const currentKey = `${queueId}_${status}_${aheadCount <= 3 ? 'near' : 'far'}`;
+
+    if (spokenKey === currentKey) return;
+
+    if (status === 'calling') {
+      speak(`请${storeQueue.queueNumber}号，前往${storeQueue.windowNo || '指定'}窗口办理${storeQueue.serviceName}业务。`);
+      setStorage(storageKeys.hasSpoken, currentKey);
+    } else if (status === 'waiting' && aheadCount <= 3 && aheadCount >= 0) {
+      speak(`温馨提示，您的号码${storeQueue.queueNumber}前方还有${aheadCount}人，请注意叫号。`);
+      setStorage(storageKeys.hasSpoken, currentKey);
+    }
+  }, [storeQueue, voiceEnabled]);
+
+  useEffect(() => {
+    checkAndSpeak();
+  }, [checkAndSpeak]);
+
+  useDidShow(() => {
+    checkAndSpeak();
+  });
 
   const handleRefresh = () => {
     setTimeout(() => {

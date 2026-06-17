@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { QueueInfo, RecordItem, RecordRating } from '@/types';
 import { recordList as initialRecordList } from '@/data/records';
 import { currentQueue as initialQueue } from '@/data/queue';
+import { storageKeys, setStorage, getStorage } from '@/utils/storage';
 
 interface SettingsState {
   voiceEnabled: boolean;
@@ -30,61 +31,133 @@ interface AppState {
   setSystemNotice: (enabled: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  currentQueue: initialQueue ? { ...initialQueue } : null,
-  hasRequeued: false,
-  queueCancelled: false,
-  records: initialRecordList.map(r => ({ ...r })),
-  settings: {
-    voiceEnabled: true,
-    vibrateEnabled: true,
-    bigFontMode: false,
-    systemNotice: true,
-  },
+const loadInitialState = () => {
+  const savedQueue = getStorage<QueueInfo | null>(storageKeys.currentQueue, null);
+  const savedHasRequeued = getStorage<boolean>(storageKeys.hasRequeued, false);
+  const savedCancelled = getStorage<boolean>(storageKeys.queueCancelled, false);
+  const savedRecords = getStorage<RecordItem[] | null>(storageKeys.records, null);
+  const savedSettings = getStorage<Partial<SettingsState> | null>(storageKeys.settings, null);
 
-  setQueue: (queue) => set({
-    currentQueue: queue ? { ...queue } : null,
-    hasRequeued: false,
-    queueCancelled: false,
-  }),
+  return {
+    currentQueue: savedQueue || (initialQueue ? { ...initialQueue } : null),
+    hasRequeued: savedHasRequeued,
+    queueCancelled: savedCancelled,
+    records: savedRecords && savedRecords.length > 0
+      ? savedRecords.map(r => ({ ...r }))
+      : initialRecordList.map(r => ({ ...r })),
+    settings: {
+      voiceEnabled: true,
+      vibrateEnabled: true,
+      bigFontMode: false,
+      systemNotice: true,
+      ...(savedSettings || {}),
+    },
+  };
+};
 
-  cancelQueue: () => set({
-    queueCancelled: true,
-    currentQueue: null,
-  }),
+const persistQueueState = (queue: QueueInfo | null, hasRequeued: boolean, queueCancelled: boolean) => {
+  setStorage(storageKeys.currentQueue, queue);
+  setStorage(storageKeys.hasRequeued, hasRequeued);
+  setStorage(storageKeys.queueCancelled, queueCancelled);
+};
 
-  requeue: (updatedQueue) => set({
-    currentQueue: { ...updatedQueue },
-    hasRequeued: true,
-  }),
+const persistRecords = (records: RecordItem[]) => {
+  setStorage(storageKeys.records, records);
+};
 
-  resetQueue: () => set({
-    currentQueue: null,
-    hasRequeued: false,
-    queueCancelled: false,
-  }),
+const persistSettings = (settings: SettingsState) => {
+  setStorage(storageKeys.settings, settings);
+};
 
-  updateRecordRating: (recordId, rating, detail) => set((state) => ({
-    records: state.records.map(r =>
-      r.id === recordId
-        ? { ...r, rating, ratingDetail: { ...detail }, comment: detail.comment }
-        : r
-    ),
-  })),
+export const useAppStore = create<AppState>((set, get) => {
+  const initial = loadInitialState();
 
-  setVoiceEnabled: (enabled) => set((state) => ({
-    settings: { ...state.settings, voiceEnabled: enabled },
-  })),
+  return {
+    currentQueue: initial.currentQueue,
+    hasRequeued: initial.hasRequeued,
+    queueCancelled: initial.queueCancelled,
+    records: initial.records,
+    settings: initial.settings,
 
-  setVibrateEnabled: (enabled) => set((state) => ({
-    settings: { ...state.settings, vibrateEnabled: enabled },
-  })),
+    setQueue: (queue) => {
+      const newQueue = queue ? { ...queue } : null;
+      set({
+        currentQueue: newQueue,
+        hasRequeued: false,
+        queueCancelled: false,
+      });
+      persistQueueState(newQueue, false, false);
+    },
 
-  setBigFontMode: (enabled) => set((state) => ({
-    settings: { ...state.settings, bigFontMode: enabled },
-  })),
+    cancelQueue: () => {
+      set({
+        queueCancelled: true,
+        currentQueue: null,
+        hasRequeued: false,
+      });
+      persistQueueState(null, false, true);
+    },
 
-  setSystemNotice: (enabled) => set((state) => ({
-    settings: { ...state.settings, systemNotice: enabled },
-  })),
-}));
+    requeue: (updatedQueue) => {
+      const newQueue = { ...updatedQueue };
+      set({
+        currentQueue: newQueue,
+        hasRequeued: true,
+      });
+      persistQueueState(newQueue, true, false);
+    },
+
+    resetQueue: () => {
+      set({
+        currentQueue: null,
+        hasRequeued: false,
+        queueCancelled: false,
+      });
+      persistQueueState(null, false, false);
+    },
+
+    updateRecordRating: (recordId, rating, detail) => {
+      set((state) => {
+        const newRecords = state.records.map(r =>
+          r.id === recordId
+            ? { ...r, rating, ratingDetail: { ...detail }, comment: detail.comment }
+            : r
+        );
+        persistRecords(newRecords);
+        return { records: newRecords };
+      });
+    },
+
+    setVoiceEnabled: (enabled) => {
+      set((state) => {
+        const newSettings = { ...state.settings, voiceEnabled: enabled };
+        persistSettings(newSettings);
+        return { settings: newSettings };
+      });
+    },
+
+    setVibrateEnabled: (enabled) => {
+      set((state) => {
+        const newSettings = { ...state.settings, vibrateEnabled: enabled };
+        persistSettings(newSettings);
+        return { settings: newSettings };
+      });
+    },
+
+    setBigFontMode: (enabled) => {
+      set((state) => {
+        const newSettings = { ...state.settings, bigFontMode: enabled };
+        persistSettings(newSettings);
+        return { settings: newSettings };
+      });
+    },
+
+    setSystemNotice: (enabled) => {
+      set((state) => {
+        const newSettings = { ...state.settings, systemNotice: enabled };
+        persistSettings(newSettings);
+        return { settings: newSettings };
+      });
+    },
+  };
+});

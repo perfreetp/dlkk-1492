@@ -1,0 +1,436 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background-color: $color-bg-page;
+  padding-bottom: 48rpx;
+}
+
+.headerCard {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  margin: $spacing-md $page-padding;
+  border-radius: $radius-lg;
+  padding: $spacing-xl;
+  color: $color-text-white;
+  box-shadow: 0 8rpx 24rpx rgba(22, 93, 255, 0.3);
+}
+
+.queueNumber {
+  text-align: center;
+  margin-bottom: $spacing-lg;
+
+  .label {
+    font-size: $font-size-sm;
+    opacity: 0.9;
+    margin-bottom: $spacing-xs;
+  }
+
+  .number {
+    font-size: 96rpx;
+    font-weight: bold;
+    letter-spacing: 8rpx;
+  }
+}
+
+.serviceInfo {
+  text-align: center;
+  margin-bottom: $spacing-xl;
+
+  .serviceName {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    margin-bottom: $spacing-xs;
+  }
+
+  .hallName {
+    font-size: $font-size-sm;
+    opacity: 0.85;
+  }
+}
+
+.progressStats {
+  display: flex;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-md;
+  padding: $spacing-md 0;
+}
+
+.statItem {
+  flex: 1;
+  text-align: center;
+
+  .statValue {
+    font-size: $font-size-xxl;
+    font-weight: bold;
+    margin-bottom: $spacing-xs;
+  }
+
+  .statLabel {
+    font-size: $font-size-xs;
+    opacity: 0.9;
+  }
+
+  &:not(:last-child) {
+    border-right: 1px solid rgba(255, 255, 255, 0.3);
+  }
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: $spacing-xs $spacing-md;
+  border-radius: $radius-round;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-md;
+
+  &.waiting {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  &.calling {
+    background: $color-warning;
+    animation: pulse 2s infinite;
+  }
+
+  &.processing {
+    background: $color-success;
+  }
+
+  &.passed {
+    background: $color-error;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.section {
+  margin: $spacing-md $page-padding;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.sectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  display: flex;
+  align-items: center;
+
+  .titleIcon {
+    margin-right: $spacing-sm;
+  }
+}
+
+.progressBar {
+  margin-bottom: $spacing-md;
+
+  .barTrack {
+    height: 12rpx;
+    background: $color-bg-hover;
+    border-radius: $radius-round;
+    overflow: hidden;
+  }
+
+  .barFill {
+    height: 100%;
+    background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+    border-radius: $radius-round;
+    transition: width $transition-base;
+  }
+
+  .barLabels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: $spacing-xs;
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+  }
+}
+
+.infoList {
+  .infoItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-sm 0;
+    border-bottom: 1px solid $color-divider;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .infoLabel {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+    }
+
+    .infoValue {
+      font-size: $font-size-sm;
+      color: $color-text-primary;
+      font-weight: $font-weight-medium;
+    }
+  }
+}
+
+.materialWarning {
+  background: $color-warning-bg;
+  border: 1px solid rgba(255, 125, 0, 0.3);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-top: $spacing-md;
+
+  .warningTitle {
+    font-size: $font-size-sm;
+    color: $color-warning;
+    font-weight: $font-weight-medium;
+    margin-bottom: $spacing-xs;
+    display: flex;
+    align-items: center;
+
+    .warningIcon {
+      margin-right: $spacing-xs;
+    }
+  }
+
+  .warningText {
+    font-size: $font-size-xs;
+    color: $color-warning;
+  }
+}
+
+.actionButtons {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.actionBtn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+
+  &.primary {
+    background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+    color: $color-text-white;
+  }
+
+  &.secondary {
+    background: $color-bg-page;
+    color: $color-text-secondary;
+    border: 1px solid $color-border;
+  }
+
+  &.warning {
+    background: $color-warning;
+    color: $color-text-white;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+  }
+}
+
+.tidalInfo {
+  .tidalItem {
+    display: flex;
+    align-items: center;
+    padding: $spacing-sm 0;
+
+    .windowNo {
+      width: 80rpx;
+      height: 48rpx;
+      background: $color-primary-bg;
+      color: $color-primary;
+      border-radius: $radius-sm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+      margin-right: $spacing-sm;
+    }
+
+    .windowType {
+      flex: 1;
+      font-size: $font-size-sm;
+      color: $color-text-primary;
+    }
+
+    .windowStatus {
+      font-size: $font-size-xs;
+      color: $color-success;
+    }
+  }
+}
+
+.emptyState {
+  text-align: center;
+  padding: $spacing-xl * 2 $page-padding;
+
+  .emptyIcon {
+    font-size: 120rpx;
+    margin-bottom: $spacing-lg;
+    opacity: 0.5;
+  }
+
+  .emptyTitle {
+    font-size: $font-size-lg;
+    color: $color-text-primary;
+    font-weight: $font-weight-medium;
+    margin-bottom: $spacing-sm;
+  }
+
+  .emptyDesc {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-xl;
+  }
+
+  .emptyBtn {
+    display: inline-block;
+    padding: $spacing-sm $spacing-xl;
+    background: $color-primary;
+    color: $color-text-white;
+    border-radius: $radius-button;
+    font-size: $font-size-md;
+  }
+}
+
+.requeueModal {
+  padding: $spacing-lg;
+}
+
+.requeueTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  text-align: center;
+  margin-bottom: $spacing-md;
+}
+
+.requeueDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  text-align: center;
+  margin-bottom: $spacing-lg;
+  line-height: 1.6;
+}
+
+.requeueInfo {
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-lg;
+
+  .infoRow {
+    display: flex;
+    justify-content: space-between;
+    padding: $spacing-xs 0;
+    font-size: $font-size-sm;
+
+    .label {
+      color: $color-text-tertiary;
+    }
+
+    .value {
+      color: $color-text-primary;
+      font-weight: $font-weight-medium;
+    }
+  }
+}
+
+.requeueWarning {
+  background: $color-warning-bg;
+  border-radius: $radius-sm;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-xs;
+  color: $color-warning;
+  margin-bottom: $spacing-lg;
+}
+
+.modalFooter {
+  display: flex;
+  gap: $spacing-md;
+
+  .cancelBtn {
+    flex: 1;
+    height: 80rpx;
+    border-radius: $radius-button;
+    background: $color-bg-hover;
+    color: $color-text-secondary;
+    font-size: $font-size-md;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .confirmBtn {
+    flex: 1;
+    height: 80rpx;
+    border-radius: $radius-button;
+    background: $color-primary;
+    color: $color-text-white;
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.currentNumber {
+  background: $color-success-bg;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  text-align: center;
+  margin-bottom: $spacing-md;
+
+  .label {
+    font-size: $font-size-xs;
+    color: $color-success;
+    margin-bottom: $spacing-xs;
+  }
+
+  .number {
+    font-size: $font-size-xxl;
+    font-weight: bold;
+    color: $color-success;
+  }
+
+  .window {
+    font-size: $font-size-sm;
+    color: $color-success;
+    margin-top: $spacing-xs;
+  }
+}
+
+.voiceTip {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  background: $color-primary-bg;
+  border-radius: $radius-md;
+  margin-top: $spacing-md;
+
+  .voiceIcon {
+    margin-right: $spacing-sm;
+    font-size: $font-size-lg;
+  }
+
+  .voiceText {
+    flex: 1;
+    font-size: $font-size-xs;
+    color: $color-primary;
+  }
+}

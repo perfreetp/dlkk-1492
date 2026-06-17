@@ -1,0 +1,442 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background-color: $color-bg-page;
+  padding-bottom: 140rpx;
+}
+
+.searchSection {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  padding: $spacing-lg $page-padding;
+}
+
+.searchBox {
+  background: $color-bg-card;
+  border-radius: $radius-button;
+  padding: $spacing-sm $spacing-lg;
+  display: flex;
+  align-items: center;
+
+  .searchIcon {
+    margin-right: $spacing-sm;
+    color: $color-text-tertiary;
+    font-size: $font-size-md;
+  }
+
+  .searchInput {
+    flex: 1;
+    font-size: $font-size-md;
+    color: $color-text-primary;
+  }
+}
+
+.categoryTabs {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: $spacing-md $page-padding;
+  background: $color-bg-card;
+  border-bottom: 1px solid $color-divider;
+  gap: $spacing-md;
+}
+
+.tabItem {
+  display: inline-block;
+  padding: $spacing-sm $spacing-lg;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  background: $color-bg-page;
+  border-radius: $radius-button;
+  flex-shrink: 0;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.section {
+  margin-top: $spacing-md;
+  background: $color-bg-card;
+  padding: $spacing-lg $page-padding;
+}
+
+.sectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.hallSelector {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-md;
+
+  .hallInfo {
+    flex: 1;
+  }
+
+  .hallName {
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    color: $color-text-primary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .hallMeta {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+  }
+
+  .crowdBadge {
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $radius-round;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    margin-left: $spacing-sm;
+
+    &.green {
+      background: $color-success-bg;
+      color: $color-success;
+    }
+
+    &.yellow {
+      background: $color-warning-bg;
+      color: $color-warning;
+    }
+
+    &.red {
+      background: $color-error-bg;
+      color: $color-error;
+    }
+  }
+
+  .arrow {
+    color: $color-text-tertiary;
+    margin-left: $spacing-sm;
+  }
+}
+
+.serviceList {
+  padding: 0 $page-padding;
+}
+
+.serviceItem {
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.serviceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-sm;
+}
+
+.serviceName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.previewBadge {
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  background: $color-success-bg;
+  color: $color-success;
+  flex-shrink: 0;
+  margin-left: $spacing-sm;
+
+  &.noPreview {
+    background: $color-bg-hover;
+    color: $color-text-tertiary;
+  }
+}
+
+.serviceDesc {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+}
+
+.serviceMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: $spacing-sm;
+  border-top: 1px solid $color-divider;
+}
+
+.metaItem {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  display: flex;
+  align-items: center;
+
+  .metaIcon {
+    margin-right: $spacing-xs;
+  }
+}
+
+.takeButton {
+  padding: $spacing-xs $spacing-lg;
+  background: $color-primary;
+  color: $color-text-white;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.bottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: $color-bg-card;
+  padding: $spacing-md $page-padding;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.08);
+  padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.selectedInfo {
+  flex: 1;
+
+  .label {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .value {
+    font-size: $font-size-sm;
+    color: $color-text-primary;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.confirmButton {
+  flex-shrink: 0;
+  min-width: 240rpx;
+  height: 88rpx;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+.materialList {
+  margin-top: $spacing-md;
+}
+
+.materialItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm 0;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+
+  .materialIcon {
+    margin-right: $spacing-sm;
+    width: 32rpx;
+    text-align: center;
+  }
+
+  &.missing {
+    color: $color-error;
+  }
+}
+
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: $spacing-lg 0;
+  background: $color-bg-card;
+  gap: $spacing-sm;
+}
+
+.stepItem {
+  display: flex;
+  align-items: center;
+
+  .stepNum {
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 50%;
+    background: $color-bg-hover;
+    color: $color-text-tertiary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+  }
+
+  .stepText {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+    margin-left: $spacing-xs;
+  }
+
+  &.active {
+    .stepNum {
+      background: $color-primary;
+      color: $color-text-white;
+    }
+
+    .stepText {
+      color: $color-primary;
+      font-weight: $font-weight-medium;
+    }
+  }
+}
+
+.stepLine {
+  width: 60rpx;
+  height: 4rpx;
+  background: $color-border;
+
+  &.active {
+    background: $color-primary;
+  }
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: $page-padding;
+}
+
+.modalContent {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  width: 100%;
+  max-width: 600rpx;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.modalHeader {
+  padding: $spacing-lg;
+  border-bottom: 1px solid $color-divider;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .modalTitle {
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+  }
+
+  .closeBtn {
+    font-size: $font-size-lg;
+    color: $color-text-tertiary;
+  }
+}
+
+.modalBody {
+  padding: $spacing-lg;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modalFooter {
+  padding: $spacing-md $spacing-lg;
+  border-top: 1px solid $color-divider;
+  display: flex;
+  gap: $spacing-md;
+
+  .cancelBtn {
+    flex: 1;
+    height: 80rpx;
+    border-radius: $radius-button;
+    background: $color-bg-hover;
+    color: $color-text-secondary;
+    font-size: $font-size-md;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .confirmBtn {
+    flex: 1;
+    height: 80rpx;
+    border-radius: $radius-button;
+    background: $color-primary;
+    color: $color-text-white;
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.hallOption {
+  padding: $spacing-md;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+  border: 2px solid transparent;
+  background: $color-bg-page;
+
+  &.selected {
+    border-color: $color-primary;
+    background: $color-primary-bg;
+  }
+
+  .hallName {
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    color: $color-text-primary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .hallInfo {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+    display: flex;
+    gap: $spacing-md;
+  }
+}
+
+.emptyState {
+  text-align: center;
+  padding: $spacing-xl 0;
+  color: $color-text-tertiary;
+  font-size: $font-size-sm;
+}

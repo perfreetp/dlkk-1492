@@ -2,41 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import styles from './index.module.scss';
-import { currentQueue as initialQueue } from '@/data/queue';
 import { getHallById } from '@/data/halls';
 import { QueueInfo, HallInfo } from '@/types';
+import { useAppStore } from '@/store';
 import classnames from 'classnames';
 
 const ProgressPage: React.FC = () => {
-  const [queue, setQueue] = useState<QueueInfo | null>(null);
+  const storeQueue = useAppStore(state => state.currentQueue);
+  const queueCancelled = useAppStore(state => state.queueCancelled);
+  const hasRequeuedStore = useAppStore(state => state.hasRequeued);
+  const cancelQueue = useAppStore(state => state.cancelQueue);
+  const requeueStore = useAppStore(state => state.requeue);
+  const bigFontMode = useAppStore(state => state.settings.bigFontMode);
+
   const [hall, setHall] = useState<HallInfo | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [showRequeueModal, setShowRequeueModal] = useState<boolean>(false);
-  const [hasRequeued, setHasRequeued] = useState<boolean>(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  useDidShow(() => {
-    loadData();
-  });
-
-  const loadData = () => {
-    setLoading(true);
-    setTimeout(() => {
-      const q = { ...initialQueue };
-      setQueue(q);
-      if (q) {
-        const h = getHallById(q.hallId);
-        setHall(h || null);
-      }
-      setLoading(false);
-    }, 500);
-  };
+    if (storeQueue) {
+      const h = getHallById(storeQueue.hallId);
+      setHall(h || null);
+    } else {
+      setHall(null);
+    }
+  }, [storeQueue]);
 
   const handleRefresh = () => {
-    loadData();
     setTimeout(() => {
       Taro.stopPullDownRefresh();
     }, 1000);
@@ -61,14 +52,14 @@ const ProgressPage: React.FC = () => {
   };
 
   const getProgressPercent = () => {
-    if (!queue) return 0;
-    const total = queue.aheadCount + 1;
+    if (!storeQueue) return 0;
+    const total = storeQueue.aheadCount + 1;
     const served = 1;
     return Math.min(Math.round((served / total) * 100), 100);
   };
 
   const handleRequeue = () => {
-    if (hasRequeued) {
+    if (hasRequeuedStore) {
       Taro.showToast({
         title: '已使用过重排机会',
         icon: 'none'
@@ -79,16 +70,14 @@ const ProgressPage: React.FC = () => {
   };
 
   const confirmRequeue = () => {
-    console.log('[Progress] 申请过号重排');
-    if (queue) {
-      const newQueue = {
-        ...queue,
-        aheadCount: queue.aheadCount + 5,
-        waitTime: queue.waitTime + 10,
-        status: 'waiting' as const
+    if (storeQueue) {
+      const updated: QueueInfo = {
+        ...storeQueue,
+        aheadCount: storeQueue.aheadCount + 5,
+        waitTime: storeQueue.waitTime + 10,
+        status: 'waiting'
       };
-      setQueue(newQueue);
-      setHasRequeued(true);
+      requeueStore(updated);
       setShowRequeueModal(false);
       Taro.showToast({
         title: '重排成功',
@@ -103,8 +92,7 @@ const ProgressPage: React.FC = () => {
       content: '确定要取消当前排队号吗？',
       success: (res) => {
         if (res.confirm) {
-          console.log('[Progress] 取消取号');
-          setQueue(null);
+          cancelQueue();
           Taro.showToast({
             title: '已取消',
             icon: 'success'
@@ -115,30 +103,27 @@ const ProgressPage: React.FC = () => {
   };
 
   const handleNavigate = () => {
-    console.log('[Progress] 导航到大厅');
     Taro.showToast({
       title: '正在打开地图...',
       icon: 'none'
     });
   };
 
-  if (loading) {
-    return (
-      <View className={styles.container}>
-        <View style={{ textAlign: 'center', padding: '100rpx 0', color: '#86909c' }}>
-          加载中...
-        </View>
-      </View>
-    );
-  }
+  const fs = bigFontMode ? { fontSize: '36rpx' } : {};
+  const fsLg = bigFontMode ? { fontSize: '44rpx' } : {};
+  const fsDesc = bigFontMode ? { fontSize: '32rpx' } : {};
 
-  if (!queue) {
+  if (queueCancelled || !storeQueue) {
     return (
-      <View className={styles.container}>
+      <View className={classnames(styles.container, { [styles.bigFont]: bigFontMode })}>
         <View className={styles.emptyState}>
           <Text className={styles.emptyIcon}>📋</Text>
-          <Text className={styles.emptyTitle}>暂无排队中的号码</Text>
-          <Text className={styles.emptyDesc}>去取号，开启高效办事体验</Text>
+          <Text className={styles.emptyTitle} style={fsLg}>
+            {queueCancelled ? '排队已取消' : '暂无排队中的号码'}
+          </Text>
+          <Text className={styles.emptyDesc} style={fsDesc}>
+            {queueCancelled ? '如需办理请重新取号' : '去取号，开启高效办事体验'}
+          </Text>
           <View
             className={styles.emptyBtn}
             onClick={() => Taro.switchTab({ url: '/pages/queue/index' })}
@@ -151,32 +136,32 @@ const ProgressPage: React.FC = () => {
   }
 
   return (
-    <View className={styles.container}>
+    <View className={classnames(styles.container, { [styles.bigFont]: bigFontMode })}>
       <ScrollView scrollY enhanced showScrollbar={false}>
         <View className={styles.headerCard}>
           <View style={{ textAlign: 'center', marginBottom: '16rpx' }}>
-            <View className={classnames(styles.statusBadge, styles[queue.status])}>
-              {getStatusText(queue.status)}
+            <View className={classnames(styles.statusBadge, styles[storeQueue.status])}>
+              {getStatusText(storeQueue.status)}
             </View>
           </View>
 
           <View className={styles.queueNumber}>
-            <Text className={styles.label}>您的号码</Text>
-            <Text className={styles.number}>{queue.queueNumber}</Text>
+            <Text className={styles.label} style={fsDesc}>您的号码</Text>
+            <Text className={styles.number} style={bigFontMode ? { fontSize: '120rpx' } : {}}>{storeQueue.queueNumber}</Text>
           </View>
 
           <View className={styles.serviceInfo}>
-            <Text className={styles.serviceName}>{queue.serviceName}</Text>
-            <Text className={styles.hallName}>{queue.hallName}</Text>
+            <Text className={styles.serviceName} style={fs}>{storeQueue.serviceName}</Text>
+            <Text className={styles.hallName} style={fsDesc}>{storeQueue.hallName}</Text>
           </View>
 
           <View className={styles.progressStats}>
             <View className={styles.statItem}>
-              <Text className={styles.statValue}>{queue.aheadCount}</Text>
+              <Text className={styles.statValue}>{storeQueue.aheadCount}</Text>
               <Text className={styles.statLabel}>前方等待</Text>
             </View>
             <View className={styles.statItem}>
-              <Text className={styles.statValue}>{queue.waitTime}</Text>
+              <Text className={styles.statValue}>{storeQueue.waitTime}</Text>
               <Text className={styles.statLabel}>预计等待(分)</Text>
             </View>
             <View className={styles.statItem}>
@@ -191,13 +176,13 @@ const ProgressPage: React.FC = () => {
           </View>
         </View>
 
-        {queue.status === 'calling' && (
+        {storeQueue.status === 'calling' && (
           <View className={styles.section}>
             <View className={styles.currentNumber}>
               <Text className={styles.label}>当前正在叫号</Text>
-              <Text className={styles.number}>{queue.currentNumber}</Text>
-              {queue.windowNo && (
-                <Text className={styles.window}>请前往 {queue.windowNo} 窗口</Text>
+              <Text className={styles.number}>{storeQueue.currentNumber}</Text>
+              {storeQueue.windowNo && (
+                <Text className={styles.window}>请前往 {storeQueue.windowNo} 窗口</Text>
               )}
             </View>
           </View>
@@ -225,32 +210,32 @@ const ProgressPage: React.FC = () => {
           <View className={styles.infoList}>
             <View className={styles.infoItem}>
               <Text className={styles.infoLabel}>取号时间</Text>
-              <Text className={styles.infoValue}>{queue.takeTime}</Text>
+              <Text className={styles.infoValue}>{storeQueue.takeTime}</Text>
             </View>
             <View className={styles.infoItem}>
               <Text className={styles.infoLabel}>预计叫号</Text>
-              <Text className={styles.infoValue}>{queue.estimatedCallTime}</Text>
+              <Text className={styles.infoValue}>{storeQueue.estimatedCallTime}</Text>
             </View>
             <View className={styles.infoItem}>
               <Text className={styles.infoLabel}>当前叫到</Text>
-              <Text className={styles.infoValue}>{queue.currentNumber}</Text>
+              <Text className={styles.infoValue}>{storeQueue.currentNumber}</Text>
             </View>
-            {queue.windowNo && (
+            {storeQueue.windowNo && (
               <View className={styles.infoItem}>
                 <Text className={styles.infoLabel}>办理窗口</Text>
-                <Text className={styles.infoValue}>{queue.windowNo}</Text>
+                <Text className={styles.infoValue}>{storeQueue.windowNo}</Text>
               </View>
             )}
           </View>
 
-          {!queue.materialsReady && queue.missingMaterials && queue.missingMaterials.length > 0 && (
+          {!storeQueue.materialsReady && storeQueue.missingMaterials && storeQueue.missingMaterials.length > 0 && (
             <View className={styles.materialWarning}>
               <View className={styles.warningTitle}>
                 <Text className={styles.warningIcon}>⚠️</Text>
                 <Text>材料提醒</Text>
               </View>
               <Text className={styles.warningText}>
-                您可能缺少：{queue.missingMaterials.join('、')}，请提前准备好相关材料，避免影响办理。
+                您可能缺少：{storeQueue.missingMaterials.join('、')}，请提前准备好相关材料，避免影响办理。
               </Text>
             </View>
           )}
@@ -278,14 +263,14 @@ const ProgressPage: React.FC = () => {
 
         <View className={styles.section}>
           <View className={styles.actionButtons}>
-            {queue.status === 'passed' ? (
+            {storeQueue.status === 'passed' ? (
               <View
                 className={classnames(styles.actionBtn, styles.warning, {
-                  [styles.disabled]: hasRequeued
+                  [styles.disabled]: hasRequeuedStore
                 })}
                 onClick={handleRequeue}
               >
-                {hasRequeued ? '已重排' : '申请重排'}
+                {hasRequeuedStore ? '已重排' : '申请重排'}
               </View>
             ) : (
               <>
@@ -305,7 +290,7 @@ const ProgressPage: React.FC = () => {
             )}
           </View>
 
-          {queue.status === 'waiting' && (
+          {storeQueue.status === 'waiting' && (
             <View style={{ marginTop: '24rpx' }}>
               <View
                 className={classnames(styles.actionBtn, styles.secondary)}
@@ -321,7 +306,7 @@ const ProgressPage: React.FC = () => {
         <View style={{ height: 48 }} />
       </ScrollView>
 
-      {showRequeueModal && (
+      {showRequeueModal && storeQueue && (
         <View className={styles.modalOverlay} onClick={() => setShowRequeueModal(false)}>
           <View className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <View className={styles.requeueModal}>
@@ -333,19 +318,19 @@ const ProgressPage: React.FC = () => {
               <View className={styles.requeueInfo}>
                 <View className={styles.infoRow}>
                   <Text className={styles.label}>原号码</Text>
-                  <Text className={styles.value}>{queue.queueNumber}</Text>
+                  <Text className={styles.value}>{storeQueue.queueNumber}</Text>
                 </View>
                 <View className={styles.infoRow}>
                   <Text className={styles.label}>原前方人数</Text>
-                  <Text className={styles.value}>{queue.aheadCount} 人</Text>
+                  <Text className={styles.value}>{storeQueue.aheadCount} 人</Text>
                 </View>
                 <View className={styles.infoRow}>
                   <Text className={styles.label}>重排后前方</Text>
-                  <Text className={styles.value}>{queue.aheadCount + 5} 人</Text>
+                  <Text className={styles.value}>{storeQueue.aheadCount + 5} 人</Text>
                 </View>
                 <View className={styles.infoRow}>
                   <Text className={styles.label}>预计等待</Text>
-                  <Text className={styles.value}>{queue.waitTime + 10} 分钟</Text>
+                  <Text className={styles.value}>{storeQueue.waitTime + 10} 分钟</Text>
                 </View>
               </View>
 

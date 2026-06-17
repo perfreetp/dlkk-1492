@@ -21,8 +21,7 @@ export const recordList: RecordItem[] = [
     takeTime: '2026-06-10 14:20',
     completeTime: '2026-06-10 15:10',
     status: 'completed',
-    windowNo: 'D02',
-    rating: 4
+    windowNo: 'D02'
   },
   {
     id: 'r3',
@@ -53,8 +52,7 @@ export const recordList: RecordItem[] = [
     takeTime: '2026-05-20 15:40',
     completeTime: '2026-05-20 16:00',
     status: 'completed',
-    windowNo: 'A02',
-    rating: 4
+    windowNo: 'A02'
   },
   {
     id: 'r6',

@@ -374,3 +374,38 @@
   max-height: 80vh;
   overflow: hidden;
 }
+
+.ratingDetail {
+  margin-top: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  background: $color-primary-bg;
+  border-radius: $radius-sm;
+}
+
+.ratingText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  line-height: 1.6;
+}
+
+.ratingTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: $spacing-xs;
+}
+
+.ratingTag {
+  padding: 2rpx $spacing-sm;
+  background: $color-bg-card;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  color: $color-primary;
+}
+
+.ratingComment {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  margin-top: $spacing-xs;
+  display: block;
+}

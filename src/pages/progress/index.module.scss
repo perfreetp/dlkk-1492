@@ -6,6 +6,21 @@
   padding-bottom: 48rpx;
 }
 
+.bigFont {
+  .statValue {
+    font-size: 56rpx !important;
+  }
+
+  .statLabel {
+    font-size: $font-size-sm !important;
+  }
+
+  .infoLabel,
+  .infoValue {
+    font-size: $font-size-md !important;
+  }
+}
+
 .headerCard {
   background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
   margin: $spacing-md $page-padding;

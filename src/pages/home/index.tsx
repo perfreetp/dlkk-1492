@@ -4,11 +4,13 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import styles from './index.module.scss';
 import { getNearbyHalls } from '@/data/halls';
 import { HallInfo } from '@/types';
+import { useAppStore } from '@/store';
 import classnames from 'classnames';
 
 const HomePage: React.FC = () => {
   const [nearbyHalls, setNearbyHalls] = useState<HallInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const bigFontMode = useAppStore(state => state.settings.bigFontMode);
 
   const quickActions = [
     { icon: '📱', text: '取号', color: '#e8f0ff', onClick: () => Taro.switchTab({ url: '/pages/queue/index' }) },
@@ -54,12 +56,10 @@ const HomePage: React.FC = () => {
   };
 
   const handleHallClick = (hall: HallInfo) => {
-    console.log('[Home] 点击大厅:', hall.name);
     Taro.switchTab({ url: '/pages/queue/index' });
   };
 
   const handleSearch = () => {
-    console.log('[Home] 点击搜索');
     Taro.switchTab({ url: '/pages/queue/index' });
   };
 
@@ -77,18 +77,22 @@ const HomePage: React.FC = () => {
     };
   }, []);
 
+  const fs = bigFontMode ? { fontSize: '36rpx' } : {};
+  const fsTitle = bigFontMode ? { fontSize: '40rpx' } : {};
+  const fsDesc = bigFontMode ? { fontSize: '32rpx' } : {};
+
   return (
-    <View className={styles.container}>
+    <View className={classnames(styles.container, { [styles.bigFont]: bigFontMode })}>
       <ScrollView scrollY enhanced showScrollbar={false}>
         <View className={styles.header}>
-          <Text className={styles.greeting}>您好，欢迎使用政务服务</Text>
+          <Text className={styles.greeting} style={fsTitle}>您好，欢迎使用政务服务</Text>
           <View className={styles.location}>
             <Text className={styles.locationIcon}>📍</Text>
-            <Text>定位：人民路街道</Text>
+            <Text style={fsDesc}>定位：人民路街道</Text>
           </View>
           <View className={styles.searchBar} onClick={handleSearch}>
             <Text className={styles.searchIcon}>🔍</Text>
-            <Text className={styles.searchText}>搜索办事事项、大厅...</Text>
+            <Text className={styles.searchText} style={fs}>搜索办事事项、大厅...</Text>
           </View>
         </View>
 
@@ -105,15 +109,15 @@ const HomePage: React.FC = () => {
               >
                 <Text>{action.icon}</Text>
               </View>
-              <Text className={styles.actionText}>{action.text}</Text>
+              <Text className={styles.actionText} style={fs}>{action.text}</Text>
             </View>
           ))}
         </View>
 
         <View className={styles.section}>
           <View className={styles.sectionHeader}>
-            <Text className={styles.sectionTitle}>附近大厅</Text>
-            <Text className={styles.moreText}>查看全部 ›</Text>
+            <Text className={styles.sectionTitle} style={fsTitle}>附近大厅</Text>
+            <Text className={styles.moreText} style={fsDesc}>查看全部 ›</Text>
           </View>
 
           {loading ? (
@@ -129,8 +133,8 @@ const HomePage: React.FC = () => {
               >
                 <View className={styles.hallHeader}>
                   <View>
-                    <Text className={styles.hallName}>{hall.name}</Text>
-                    <Text className={styles.hallAddress}>{hall.address}</Text>
+                    <Text className={styles.hallName} style={fs}>{hall.name}</Text>
+                    <Text className={styles.hallAddress} style={fsDesc}>{hall.address}</Text>
                   </View>
                   <View className={getCrowdClass(hall.crowdLevel)}>
                     {hall.crowdText}
@@ -139,29 +143,29 @@ const HomePage: React.FC = () => {
 
                 <View className={styles.hallInfo}>
                   <View className={styles.infoItem}>
-                    <Text className={styles.infoValue}>{hall.waitTime}</Text>
-                    <Text className={styles.infoLabel}>预计等待(分)</Text>
+                    <Text className={styles.infoValue} style={fsTitle}>{hall.waitTime}</Text>
+                    <Text className={styles.infoLabel} style={fsDesc}>预计等待(分)</Text>
                   </View>
                   <View className={styles.infoItem}>
-                    <Text className={styles.infoValue}>{hall.openWindows}/{hall.windowCount}</Text>
-                    <Text className={styles.infoLabel}>开放窗口</Text>
+                    <Text className={styles.infoValue} style={fs}>{hall.openWindows}/{hall.windowCount}</Text>
+                    <Text className={styles.infoLabel} style={fsDesc}>开放窗口</Text>
                   </View>
                   <View className={styles.infoItem}>
-                    <Text className={styles.infoValue}>{hall.businessHours}</Text>
-                    <Text className={styles.infoLabel}>营业时间</Text>
+                    <Text className={styles.infoValue} style={fsDesc}>{hall.businessHours}</Text>
+                    <Text className={styles.infoLabel} style={fsDesc}>营业时间</Text>
                   </View>
                 </View>
 
                 <View className={styles.distance}>
                   <Text className={styles.distanceIcon}>🚶</Text>
-                  <Text>距您 {hall.distance} 公里</Text>
+                  <Text style={fsDesc}>距您 {hall.distance} 公里</Text>
                 </View>
 
                 {hall.tidalWindows.filter(w => w.status === 'open').length > 0 && (
                   <View className={styles.tidalSection}>
                     <View className={styles.tidalTitle}>
                       <Text className={styles.tidalIcon}>🌊</Text>
-                      <Text>当前开放潮汐窗口</Text>
+                      <Text style={fs}>当前开放潮汐窗口</Text>
                     </View>
                     <View className={styles.tidalList}>
                       {hall.tidalWindows
@@ -170,7 +174,7 @@ const HomePage: React.FC = () => {
                         .map((window, idx) => (
                           <View key={idx} className={styles.tidalItem}>
                             <Text className={styles.windowNo}>{window.windowNo}</Text>
-                            <Text>{window.serviceType}</Text>
+                            <Text style={fsDesc}>{window.serviceType}</Text>
                           </View>
                         ))}
                     </View>
@@ -183,7 +187,7 @@ const HomePage: React.FC = () => {
 
         <View className={styles.section}>
           <View className={styles.sectionHeader}>
-            <Text className={styles.sectionTitle}>热门服务</Text>
+            <Text className={styles.sectionTitle} style={fsTitle}>热门服务</Text>
           </View>
           <View className={styles.hotServices}>
             {hotServices.map((service, index) => (
@@ -195,7 +199,7 @@ const HomePage: React.FC = () => {
                 <View className={styles.serviceIcon}>
                   <Text>{service.icon}</Text>
                 </View>
-                <Text className={styles.serviceName}>{service.name}</Text>
+                <Text className={styles.serviceName} style={fsDesc}>{service.name}</Text>
               </View>
             ))}
           </View>

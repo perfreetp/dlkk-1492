@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, Input } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
-import { recordList } from '@/data/records';
-import { RecordItem } from '@/types';
+import { RecordItem, RecordRating } from '@/types';
+import { useAppStore } from '@/store';
 import classnames from 'classnames';
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [records, setRecords] = useState<RecordItem[]>([]);
+  const records = useAppStore(state => state.records);
+  const updateRecordRating = useAppStore(state => state.updateRecordRating);
+
   const [showRatingModal, setShowRatingModal] = useState<boolean>(false);
   const [selectedRecord, setSelectedRecord] = useState<RecordItem | null>(null);
   const [serviceRating, setServiceRating] = useState<number>(0);
@@ -23,18 +25,6 @@ const ProfilePage: React.FC = () => {
   ];
 
   const quickTags = ['服务态度好', '办理速度快', '等待时间短', '环境整洁', '指引清晰', '需要改进'];
-
-  useEffect(() => {
-    loadRecords();
-  }, []);
-
-  useDidShow(() => {
-    loadRecords();
-  });
-
-  const loadRecords = () => {
-    setRecords([...recordList]);
-  };
 
   const getFilteredRecords = () => {
     if (activeTab === 'all') return records;
@@ -91,20 +81,15 @@ const ProfilePage: React.FC = () => {
       return;
     }
 
-    console.log('[Profile] 提交评价:', {
-      record: selectedRecord?.id,
-      serviceRating,
-      waitRating,
-      comment,
-      tags: selectedTags
-    });
-
     if (selectedRecord) {
-      setRecords(prev => prev.map(r =>
-        r.id === selectedRecord.id
-          ? { ...r, rating: Math.round((serviceRating + waitRating) / 2), comment }
-          : r
-      ));
+      const avgRating = Math.round((serviceRating + waitRating) / 2);
+      const detail: RecordRating = {
+        serviceRating,
+        waitRating,
+        tags: selectedTags,
+        comment,
+      };
+      updateRecordRating(selectedRecord.id, avgRating, detail);
     }
 
     setShowRatingModal(false);
@@ -144,7 +129,6 @@ const ProfilePage: React.FC = () => {
   ];
 
   const handleMenuClick = (item: typeof menuItems[0]) => {
-    console.log('[Profile] 点击菜单:', item.text);
     if (item.path) {
       if (item.path.startsWith('/pages/reminder')) {
         Taro.switchTab({ url: item.path });
@@ -217,31 +201,50 @@ const ProfilePage: React.FC = () => {
 
                 <View className={styles.recordInfo}>
                   <Text>{record.hallName}</Text>
-                  <Text>{`\n`}</Text>
+                  <Text>{'\n'}</Text>
                   <Text>号码：{record.queueNumber}</Text>
-                  <Text>{`\n`}</Text>
+                  <Text>{'\n'}</Text>
                   <Text>取号时间：{record.takeTime}</Text>
                   {record.completeTime && (
                     <>
-                      <Text>{`\n`}</Text>
+                      <Text>{'\n'}</Text>
                       <Text>办结时间：{record.completeTime}</Text>
                     </>
                   )}
                   {record.windowNo && (
                     <>
-                      <Text>{`\n`}</Text>
+                      <Text>{'\n'}</Text>
                       <Text>办理窗口：{record.windowNo}</Text>
                     </>
                   )}
                 </View>
 
                 {record.rating && (
-                  <View className={styles.ratingStars}>
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Text key={star} className={styles.star}>
-                        {star <= record.rating ? '⭐' : '☆'}
-                      </Text>
-                    ))}
+                  <View className={styles.ratingSection}>
+                    <View className={styles.ratingStars}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Text key={star} className={styles.star}>
+                          {star <= record.rating! ? '⭐' : '☆'}
+                        </Text>
+                      ))}
+                    </View>
+                    {record.ratingDetail && (
+                      <View className={styles.ratingDetail}>
+                        <Text className={styles.ratingText}>
+                          服务：{'⭐'.repeat(record.ratingDetail.serviceRating)} 等候：{'⭐'.repeat(record.ratingDetail.waitRating)}
+                        </Text>
+                        {record.ratingDetail.tags.length > 0 && (
+                          <View className={styles.ratingTags}>
+                            {record.ratingDetail.tags.map((tag, idx) => (
+                              <View key={idx} className={styles.ratingTag}>{tag}</View>
+                            ))}
+                          </View>
+                        )}
+                        {record.ratingDetail.comment && (
+                          <Text className={styles.ratingComment}>{record.ratingDetail.comment}</Text>
+                        )}
+                      </View>
+                    )}
                   </View>
                 )}
 

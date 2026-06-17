@@ -55,6 +55,13 @@ export interface ReminderItem {
   relatedQueueId?: string;
 }
 
+export interface RecordRating {
+  serviceRating: number;
+  waitRating: number;
+  tags: string[];
+  comment: string;
+}
+
 export interface RecordItem {
   id: string;
   hallName: string;
@@ -65,6 +72,7 @@ export interface RecordItem {
   status: 'completed' | 'passed' | 'cancelled';
   windowNo?: string;
   rating?: number;
+  ratingDetail?: RecordRating;
   comment?: string;
 }
 

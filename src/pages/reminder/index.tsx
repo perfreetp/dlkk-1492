@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import styles from './index.module.scss';
 import { reminderList, getUnreadReminderCount } from '@/data/records';
 import { ReminderItem } from '@/types';
+import { useAppStore } from '@/store';
 import classnames from 'classnames';
 
 const ReminderPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
-  const [vibrateEnabled, setVibrateEnabled] = useState<boolean>(true);
-  const [bigFontMode, setBigFontMode] = useState<boolean>(false);
-  const [systemNotice, setSystemNotice] = useState<boolean>(true);
+
+  const voiceEnabled = useAppStore(state => state.settings.voiceEnabled);
+  const vibrateEnabled = useAppStore(state => state.settings.vibrateEnabled);
+  const bigFontMode = useAppStore(state => state.settings.bigFontMode);
+  const systemNotice = useAppStore(state => state.settings.systemNotice);
+  const setVoiceEnabled = useAppStore(state => state.setVoiceEnabled);
+  const setVibrateEnabled = useAppStore(state => state.setVibrateEnabled);
+  const setBigFontMode = useAppStore(state => state.setBigFontMode);
+  const setSystemNotice = useAppStore(state => state.setSystemNotice);
 
   const tabs = [
     { key: 'all', name: '全部' },
@@ -50,10 +56,23 @@ const ReminderPage: React.FC = () => {
     return iconMap[type] || '📌';
   };
 
+  const doSpeak = useCallback((text: string) => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+  }, []);
+
   const handleReminderClick = (reminder: ReminderItem) => {
-    console.log('[Reminder] 点击提醒:', reminder.title);
     if (!reminder.read) {
       markAsRead(reminder.id);
+    }
+    if (voiceEnabled) {
+      doSpeak(reminder.content);
     }
     if (reminder.relatedQueueId) {
       Taro.switchTab({ url: '/pages/progress/index' });
@@ -61,14 +80,13 @@ const ReminderPage: React.FC = () => {
   };
 
   const markAsRead = (id: string) => {
-    setReminders(prev => prev.map(r => 
+    setReminders(prev => prev.map(r =>
       r.id === id ? { ...r, read: true } : r
     ));
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const markAllRead = () => {
-    console.log('[Reminder] 全部标记为已读');
     setReminders(prev => prev.map(r => ({ ...r, read: true })));
     setUnreadCount(0);
     Taro.showToast({
@@ -78,57 +96,53 @@ const ReminderPage: React.FC = () => {
   };
 
   const handleVoiceToggle = () => {
-    setVoiceEnabled(!voiceEnabled);
-    console.log('[Reminder] 语音播报:', !voiceEnabled);
-    if (!voiceEnabled) {
-      Taro.showToast({
-        title: '语音播报已开启',
-        icon: 'success'
-      });
-    }
+    const newVal = !voiceEnabled;
+    setVoiceEnabled(newVal);
+    Taro.showToast({
+      title: newVal ? '语音播报已开启' : '语音播报已关闭',
+      icon: 'none'
+    });
   };
 
   const handleVibrateToggle = () => {
     setVibrateEnabled(!vibrateEnabled);
-    console.log('[Reminder] 震动提醒:', !vibrateEnabled);
   };
 
   const handleBigFontToggle = () => {
-    setBigFontMode(!bigFontMode);
-    console.log('[Reminder] 大字模式:', !bigFontMode);
+    const newVal = !bigFontMode;
+    setBigFontMode(newVal);
     Taro.showToast({
-      title: bigFontMode ? '已关闭大字模式' : '已开启大字模式',
+      title: newVal ? '已开启大字模式' : '已关闭大字模式',
       icon: 'none'
     });
   };
 
   const handleSystemNoticeToggle = () => {
     setSystemNotice(!systemNotice);
-    console.log('[Reminder] 系统通知:', !systemNotice);
   };
 
   const testVoice = () => {
-    console.log('[Reminder] 测试语音播报');
-    Taro.showToast({
-      title: '正在播放测试语音...',
-      icon: 'none'
-    });
+    doSpeak('请注意，您的号码即将被叫到，请前往指定窗口办理业务。');
   };
 
   const filteredReminders = getFilteredReminders();
 
   const getUnreadCountByType = (type: string) => {
     if (type === 'all') return unreadCount;
-    return reminders.filter(r => 
+    return reminders.filter(r =>
       !r.read && (r.type === type || (type === 'call' && r.type === 'queue'))
     ).length;
   };
 
+  const fontSizeStyle = bigFontMode ? { fontSize: '36rpx' } : {};
+  const titleFontSizeStyle = bigFontMode ? { fontSize: '40rpx' } : {};
+  const descFontSizeStyle = bigFontMode ? { fontSize: '32rpx' } : {};
+
   return (
-    <View className={styles.container}>
+    <View className={classnames(styles.container, { [styles.bigFont]: bigFontMode })}>
       <View className={styles.bigFontTip}>
         <Text className={styles.tipIcon}>👴</Text>
-        <Text className={styles.tipText}>
+        <Text className={styles.tipText} style={bigFontMode ? { fontSize: '28rpx' } : {}}>
           老年人可开启大字模式和语音播报，使用更方便
         </Text>
       </View>
@@ -144,7 +158,7 @@ const ReminderPage: React.FC = () => {
               })}
               onClick={() => setActiveTab(tab.key)}
             >
-              {tab.name}
+              <Text style={bigFontMode ? { fontSize: '30rpx' } : {}}>{tab.name}</Text>
               {count > 0 && (
                 <View className={styles.badge}>{count > 99 ? '99+' : count}</View>
               )}
@@ -181,11 +195,11 @@ const ReminderPage: React.FC = () => {
                     {getTypeIcon(reminder.type)}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text className={styles.reminderTitle}>{reminder.title}</Text>
-                    <Text className={styles.reminderTime}>{reminder.time}</Text>
+                    <Text className={styles.reminderTitle} style={titleFontSizeStyle}>{reminder.title}</Text>
+                    <Text className={styles.reminderTime} style={bigFontMode ? { fontSize: '24rpx' } : {}}>{reminder.time}</Text>
                   </View>
                 </View>
-                <Text className={styles.reminderContent}>{reminder.content}</Text>
+                <Text className={styles.reminderContent} style={fontSizeStyle}>{reminder.content}</Text>
                 {reminder.relatedQueueId && (
                   <View className={styles.reminderActions}>
                     <View className={classnames(styles.actionBtn, styles.primary)}>
@@ -201,18 +215,18 @@ const ReminderPage: React.FC = () => {
         <View className={styles.settingsSection}>
           <View className={styles.sectionTitle}>
             <Text className={styles.titleIcon}>⚙️</Text>
-            <Text>提醒设置</Text>
+            <Text style={bigFontMode ? { fontSize: '34rpx' } : {}}>提醒设置</Text>
           </View>
 
           <View className={styles.settingItem}>
             <View className={styles.settingInfo}>
-              <Text className={styles.settingName}>语音播报</Text>
-              <Text className={styles.settingDesc}>叫号时语音提醒，避免错过</Text>
+              <Text className={styles.settingName} style={fontSizeStyle}>语音播报</Text>
+              <Text className={styles.settingDesc} style={descFontSizeStyle}>叫号时语音提醒，避免错过</Text>
               {voiceEnabled && (
-                <View className={styles.voiceTest} onClick={testVoice}>
+                <View className={styles.voiceTest} onClick={(e) => { e.stopPropagation(); testVoice(); }}>
                   <Text className={styles.voiceIcon}>🔊</Text>
-                  <Text className={styles.voiceText}>点击试听播报效果</Text>
-                  <Text className={styles.playBtn}>播放</Text>
+                  <Text className={styles.voiceText} style={bigFontMode ? { fontSize: '26rpx' } : {}}>点击试听播报效果</Text>
+                  <Text className={styles.playBtn} style={bigFontMode ? { fontSize: '26rpx' } : {}}>播放</Text>
                 </View>
               )}
             </View>
@@ -228,8 +242,8 @@ const ReminderPage: React.FC = () => {
 
           <View className={styles.settingItem}>
             <View className={styles.settingInfo}>
-              <Text className={styles.settingName}>震动提醒</Text>
-              <Text className={styles.settingDesc}>叫号时手机震动提醒</Text>
+              <Text className={styles.settingName} style={fontSizeStyle}>震动提醒</Text>
+              <Text className={styles.settingDesc} style={descFontSizeStyle}>叫号时手机震动提醒</Text>
             </View>
             <View
               className={classnames(styles.switch, {
@@ -243,8 +257,8 @@ const ReminderPage: React.FC = () => {
 
           <View className={styles.settingItem}>
             <View className={styles.settingInfo}>
-              <Text className={styles.settingName}>大字模式</Text>
-              <Text className={styles.settingDesc}>增大字号，方便老年人阅读</Text>
+              <Text className={styles.settingName} style={fontSizeStyle}>大字模式</Text>
+              <Text className={styles.settingDesc} style={descFontSizeStyle}>增大字号，方便老年人阅读</Text>
             </View>
             <View
               className={classnames(styles.switch, {
@@ -258,8 +272,8 @@ const ReminderPage: React.FC = () => {
 
           <View className={styles.settingItem}>
             <View className={styles.settingInfo}>
-              <Text className={styles.settingName}>系统通知</Text>
-              <Text className={styles.settingDesc}>接收系统公告和大厅通知</Text>
+              <Text className={styles.settingName} style={fontSizeStyle}>系统通知</Text>
+              <Text className={styles.settingDesc} style={descFontSizeStyle}>接收系统公告和大厅通知</Text>
             </View>
             <View
               className={classnames(styles.switch, {
@@ -275,13 +289,13 @@ const ReminderPage: React.FC = () => {
         <View className={styles.settingsSection}>
           <View className={styles.sectionTitle}>
             <Text className={styles.titleIcon}>⏰</Text>
-            <Text>提醒时间</Text>
+            <Text style={bigFontMode ? { fontSize: '34rpx' } : {}}>提醒时间</Text>
           </View>
 
           <View className={styles.settingItem}>
             <View className={styles.settingInfo}>
-              <Text className={styles.settingName}>提前提醒</Text>
-              <Text className={styles.settingDesc}>当前方还有5人时提醒</Text>
+              <Text className={styles.settingName} style={fontSizeStyle}>提前提醒</Text>
+              <Text className={styles.settingDesc} style={descFontSizeStyle}>当前方还有5人时提醒</Text>
             </View>
             <Text style={{ fontSize: '26rpx', color: '#165dff' }}>5人</Text>
           </View>

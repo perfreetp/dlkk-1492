@@ -5,6 +5,16 @@
   background-color: $color-bg-page;
 }
 
+.bigFont {
+  .infoValue {
+    font-size: $font-size-xxl !important;
+  }
+
+  .infoLabel {
+    font-size: $font-size-sm !important;
+  }
+}
+
 .header {
   background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
   padding: 32rpx $page-padding 48rpx;

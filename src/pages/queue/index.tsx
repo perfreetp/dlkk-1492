@@ -6,6 +6,7 @@ import { serviceCategories, getServicesByCategory, searchServices } from '@/data
 import { hallList } from '@/data/halls';
 import { mockTakeNumber } from '@/data/queue';
 import { ServiceItem, HallInfo, QueueInfo } from '@/types';
+import { useAppStore } from '@/store';
 import classnames from 'classnames';
 
 const QueuePage: React.FC = () => {
@@ -18,6 +19,8 @@ const QueuePage: React.FC = () => {
   const [showServiceDetail, setShowServiceDetail] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [newQueue, setNewQueue] = useState<QueueInfo | null>(null);
+
+  const setQueue = useAppStore(state => state.setQueue);
 
   useEffect(() => {
     loadServices();
@@ -49,13 +52,11 @@ const QueuePage: React.FC = () => {
   };
 
   const handleServiceClick = (service: ServiceItem) => {
-    console.log('[Queue] 点击服务:', service.name);
     setSelectedService(service);
     setShowServiceDetail(true);
   };
 
   const handleHallSelect = (hall: HallInfo) => {
-    console.log('[Queue] 选择大厅:', hall.name);
     setSelectedHall(hall);
     setShowHallModal(false);
   };
@@ -77,10 +78,9 @@ const QueuePage: React.FC = () => {
       return;
     }
 
-    console.log('[Queue] 取号:', selectedHall.name, selectedService.name);
-    
     const queueInfo = mockTakeNumber(selectedHall.id, selectedService.name);
     setNewQueue(queueInfo);
+    setQueue(queueInfo);
     setShowServiceDetail(false);
     setShowSuccess(true);
 
@@ -224,7 +224,7 @@ const QueuePage: React.FC = () => {
                 </Text>
                 <View style={{ fontSize: '26rpx', color: '#4e5969', lineHeight: 1.8 }}>
                   <Text>• 平均办理时长：{selectedService.avgHandleTime} 分钟</Text>
-                  <Text>{`\n`}</Text>
+                  <Text>{'\n'}</Text>
                   <Text>• 线上预审：{selectedService.supportOnlinePreview ? '支持' : '不支持'}</Text>
                 </View>
               </View>
